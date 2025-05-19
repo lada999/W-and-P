@@ -1,0 +1,441 @@
+<!-- отличия от предыдущей версии помечены «// NEW» -->
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <title>Карта перемещений героев «Войны и мира»</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@7.3.0/dist/ol.css">
+    <script src="https://cdn.jsdelivr.net/npm/ol@7.3.0/dist/ol.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+    <style>
+        html,body,#map{height:100%;margin:0;font:14px/1.35 system-ui,Arial,sans-serif}
+        #panel{position:absolute;left:10px;top:10px;z-index:1000;background:#fff;
+            padding:8px 12px;border-radius:4px;box-shadow:0 0 6px rgba(0,0,0,.35);
+            max-height:90%;overflow:auto}
+        .color{display:inline-block;width:12px;height:12px;border:1px solid #000;
+            margin-right:4px;vertical-align:middle}
+        #sliderWrap{position:absolute;left:0;right:0;bottom:14px;z-index:1000;
+            text-align:center;font-size:11px;pointer-events:none}
+        #sliderWrap input{width:92%;pointer-events:auto}
+        #yearsLbls{position:relative;margin-top:2px;height:12px}
+        #yearsLbls span{position:absolute;transform:translateX(-50%);white-space:nowrap}
+        #info{position:absolute;right:0;top:0;width:25%;height:100%;z-index:900;
+            background:rgba(255,255,255,.88);overflow:auto;padding:8px 12px;
+            font-size:13px}
+        .placeHead{font-weight:700;margin:.6em 0 .2em}
+        .charItem{margin:2px 0 4px 6px}
+        .charCtx{display:block;font-size:12px;color:#555}
+        .ctxVol{font-style:italic}
+        #popup{position:absolute;background:#fff;padding:4px 6px;border-radius:3px;
+            box-shadow:0 0 4px rgba(0,0,0,.4);white-space:nowrap;font-size:13px}
+        #yearBanner{position:absolute;top:4px;left:50%;transform:translateX(-50%);
+            z-index:1200;font-size:28px;font-weight:700;
+            color:#ff3333;text-shadow:1px 1px 4px #fff;pointer-events:none}
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+
+    <div id="yearBanner"></div>
+    <div id="panel"><b>Персонажи</b><br/><div id="who"></div></div>
+    <div id="info"></div>
+
+    <div id="sliderWrap">
+      Шаг <span id="stepNum">0</span>
+      <input id="time" type="range" min="0" max="0" step="1" value="0">
+      <div id="yearsLbls"></div>
+    </div>
+
+    <div id="popup" style="display:none"></div>
+
+    <script>
+        /* ═══ 0. утилиты ═══ */
+        const palette=[
+            '#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00','#a65628',
+            '#f781bf','#999999','#1b9e77','#d95f02','#7570b3','#e7298a',
+            '#66a61e','#e6ab02','#a6761d','#666666','#8da0cb','#e78ac3',
+            '#a6d854','#ffd92f','#b3b3b3','#fb9a99','#80b1d3','#bc80bd'
+        ];
+        const toNum=v=>{const n=parseFloat(String(v).replace(',','.'));return Number.isFinite(n)?n:NaN;};
+
+        /* попытка сопоставить «грязное» название места с вариантов в справочнике */
+        function normalizePlace(name, places){
+            if (places[name]) return name;
+
+            /* 1) если несколько вариантов через «/» – берём первый найденный */
+            const variants = name.split('/').map(s => s.trim());
+            for (const v of variants) if (places[v]) return v;
+
+            /* 2) убираем скобки */
+            const cleaned = name.replace(/\s*\(.*?\)/g, '').trim();
+            if (places[cleaned]) return cleaned;
+
+            /* 3) проверяем каждую часть без скобок */
+            for (const v of variants){
+                const c = v.replace(/\s*\(.*?\)/g, '').trim();
+                if (places[c]) return c;
+            }
+            return null;                                // совпадений не найдено
+        }
+
+        /* ═══ 1. загрузка ═══ */
+        const searchParams = new URLSearchParams(window.location.search);
+        const placesFile = searchParams.get('places');
+        const movesFile  = searchParams.get('moves');
+        Promise.all([
+            fetch(placesFile).then(r=>r.text()),
+            fetch(movesFile).then(r=>r.text())
+        ]).then(([pcsv,mcsv])=>{
+            const places=parsePlaces(pcsv);
+            const {chars,dates}=parseMoves(mcsv,places);
+            buildMap(places,chars,dates);
+        });
+
+        /* ---------- 1.1 места ---------- */
+        const parsePlaces = csv => {
+            const data = Papa.parse(csv, { header: true, skipEmptyLines: true }).data;
+            const warnings = [];
+            const places = data.reduce((acc, row, index) => {
+                const { Place = '', ModernName = '', Country = '', Lat, Long, Comment = '' } = row;
+                const name = Place.trim();
+                const modernName = ModernName.trim();
+                const country = Country.trim();
+                const lon = toNum(Long);
+                const lat = toNum(Lat);
+                if (!name || !modernName || !country || isNaN(lon) || isNaN(lat)) {
+                    warnings.push(`Invalid place data at row ${index + 2}: ${JSON.stringify(row)}`);
+                    return acc;
+                }
+                return { ...acc, [name]: { c: [lon, lat], d: Comment.trim() } };
+            }, {});
+            if (warnings.length) {
+                warnings.forEach(msg => console.warn(msg));
+                alert("Есть невалидные данные в Places. Проверьте консоль для деталей.");
+            }
+            return places;
+        };
+
+        /* ---------- 1.2 перемещения ---------- */
+        function parseMoves(csv, places) {
+            const { chars, dateSet } = Papa.parse(csv, { header: true, skipEmptyLines: true }).data
+                                           .reduce((acc, r) => {
+                                               const date = (r.Date || '').trim();
+                                               if (date) acc.dateSet.add(date);
+
+                                               const name = r.Character.trim();
+                                               let from   = r.From.trim(),
+                                                   to     = r.To.trim();
+
+                                               from = normalizePlace(from, places) || from;
+                                               to   = normalizePlace(to,   places) || to;
+                                               if (!places[from] || !places[to]) return acc;
+
+                                               const entry = acc.chars[name] ?? {
+                                                   n: name,
+                                                   col: palette[Object.keys(acc.chars).length % palette.length],
+                                                   moves: []
+                                               };
+
+                                               entry.moves.push([
+                                                   from,
+                                                   to,
+                                                   (r.Context || '').trim(),
+                                                   (r.Volume  || '').trim(),
+                                                   (r.Part    || '').trim(),
+                                                   date
+                                               ]);
+                                               acc.chars[name] = entry;
+                                               return acc;
+                                           }, { chars: {}, dateSet: new Set() });
+
+            const dateList = [...dateSet].sort((a, b) => Date.parse(a) - Date.parse(b));
+
+            Object.values(chars).forEach(ch=>{
+                /* проставляем индекс даты в список moves */
+                ch.moves.forEach(m=>m.push(dateList.indexOf(m[5]||'')));
+                /* гарантируем хронологический порядок перемещений персонажа */
+                ch.moves.sort((a,b)=>a[6]-b[6]);
+            });
+
+            return { chars: Object.values(chars), dates: dateList };
+        }
+
+        /* ═══ 2. UI ═══ */
+        function buildMap(places,chars,dates){
+            /* слой точек */
+            const placeFeats=Object.entries(places).map(([name,o])=>{
+                const f=new ol.Feature({geometry:new ol.geom.Point(ol.proj.fromLonLat(o.c)),name,descr:o.d});
+                f.setStyle(new ol.style.Style({
+                    image:new ol.style.Circle({radius:4,fill:new ol.style.Fill({color:'#000'}),
+                                               stroke:new ol.style.Stroke({color:'#fff',width:1})}),
+                    text:new ol.style.Text({text:name,offsetY:-12,font:'600 12px sans-serif',
+                                            fill:new ol.style.Fill({color:'#000'}),
+                                            backgroundFill:new ol.style.Fill({color:'rgba(255,255,255,.85)'})})
+                }));
+                return f;
+            });
+            const placeLayer=new ol.layer.Vector({source:new ol.source.Vector({features:placeFeats})});
+
+            /* карта */
+            const map=new ol.Map({
+                target:'map',
+                layers:[new ol.layer.Tile({source:new ol.source.OSM()}),placeLayer],
+                view:new ol.View({center:ol.proj.fromLonLat([35,55]),zoom:5})
+            });
+
+            /* popup */
+            const popupEl=document.getElementById('popup'),
+                  overlay=new ol.Overlay({element:popupEl,offset:[0,-10],autoPan:true});
+            map.addOverlay(overlay);
+            map.on('pointermove', e => {
+                const feat = map.forEachFeatureAtPixel(e.pixel, f => f);
+                if (feat) {
+                    const p = feat.getProperties();
+                    if(p.title){
+                        popupEl.innerHTML = `<b>${p.title}</b><br>${p.ctx || 'нет статуса'}`;
+                    } else {
+                        popupEl.innerHTML = p.name ? `<b>${p.name}</b><br>${p.descr}` : '';
+                    }
+                    overlay.setPosition(e.coordinate);
+                    popupEl.style.display = 'block';
+                } else {
+                    popupEl.style.display = 'none';
+                }
+            });
+
+            /* персонажи */
+            const legend=document.getElementById('who'),infoDiv=document.getElementById('info'),
+                  charLayers={},iconFeats={};
+
+            legend.insertAdjacentHTML('afterbegin', `<label><input type="checkbox" id="selectAll"> Выбрать всех</label><br/>`);
+
+            const iconStyle=(col,txt)=>new ol.style.Style({
+                image:new ol.style.Circle({radius:16,fill:new ol.style.Fill({color:col}),
+                                           stroke:new ol.style.Stroke({color:'#000',width:2})}),
+                text:new ol.style.Text({text:txt,font:'bold 13px sans-serif',
+                                        fill:new ol.style.Fill({color:'#fff'})})
+            });
+
+            chars.forEach(ch=>{
+                /* линии-стрелки */
+                const lineFeats = ch.moves.map(([from, to, ctx, vol, part]) => {
+                    const ls = [places[from].c, places[to].c].map(c => ol.proj.fromLonLat(c));
+                    const feat = new ol.Feature({
+                        geometry: new ol.geom.LineString(ls),
+                        title: `${from} → ${to}`,
+                        ctx
+                    });
+                    feat.set('color', ch.col);
+
+                    /* динамический стиль с наконечником-стрелкой */
+                    feat.setStyle(feature => {
+                        const col = feature.get('color');
+                        const geom = feature.getGeometry();
+                        const coords = geom.getCoordinates();
+                        const start = coords[coords.length - 2];
+                        const end = coords[coords.length - 1];
+                        const dx = end[0] - start[0];
+                        const dy = end[1] - start[1];
+                        const rotation = Math.atan2(dy, dx);
+
+                        return [
+                            new ol.style.Style({
+                                stroke: new ol.style.Stroke({ color: col, width: 3 })
+                            }),
+                            new ol.style.Style({
+                                geometry: new ol.geom.Point(end),
+                                image: new ol.style.RegularShape({
+                                    fill: new ol.style.Fill({ color: col }),
+                                    points: 3,
+                                    radius: 6,
+                                    rotation: rotation,
+                                    angle: Math.PI / 2
+                                })
+                            })
+                        ];
+                    });
+                    return feat;
+                });
+
+                const lineLayer = new ol.layer.Vector({
+                    source: new ol.source.Vector({ features: lineFeats }),
+                    visible: false
+                });
+                map.addLayer(lineLayer);
+                charLayers[ch.n] = lineLayer;
+
+                /* иконка */
+                const pt=ol.proj.fromLonLat(places[ch.moves[0][0]].c);
+                const iconF=new ol.Feature({geometry:new ol.geom.Point(pt)});
+                iconF.setStyle(iconStyle(ch.col,ch.n[0]));
+                const iconLayer=new ol.layer.Vector({source:new ol.source.Vector({features:[iconF]}),visible:false});
+                map.addLayer(iconLayer);
+                charLayers[ch.n+'_icon']=iconLayer;
+                iconFeats[ch.n]=iconF;
+
+                /* легенда */
+                legend.insertAdjacentHTML('beforeend',
+                                          `<label><input type="checkbox" data-name="${ch.n}">
+        <span class="color" style="background:${ch.col}"></span>${ch.n}</label><br/>`);
+            });
+
+            /* тайм-линия */
+            const slider=document.getElementById('time'),stepLbl=document.getElementById('stepNum'),
+                  yearsDiv=document.getElementById('yearsLbls'),yearBanner=document.getElementById('yearBanner');
+            /* ─── слайдер и подписи дат ─── */
+            const maxStepDummy = dates.length - 1;   // прежний расчёт оставляем на всякий случай
+            let   visibleDateIdxs = [];              // индексы дат, отображаемых на шкале
+
+            function rebuildSliderDates(){
+                const anyChecked = Array.from(document.querySelectorAll('input[type=checkbox]')).some(cb => cb.checked);
+                const sliderWrapEl = document.getElementById('sliderWrap');
+                if (!anyChecked) {
+                    sliderWrapEl.style.display = 'none';
+                    visibleDateIdxs = [];
+                    slider.max = 0;
+                    slider.value = 0;
+                    yearsDiv.innerHTML = '';
+                    return;
+                } else {
+                    sliderWrapEl.style.display = 'block';
+                }
+                /* собираем все даты у персонажей, чьи чекбоксы включены */
+                const idxSet = new Set();
+                chars.forEach(ch=>{
+                    if(!charLayers[ch.n].getVisible()) return;
+                    ch.moves.forEach(m=>{ if(m[6]!==undefined) idxSet.add(m[6]); });
+                });
+                visibleDateIdxs = [...idxSet].sort((a,b)=>a-b);
+                slider.max   = visibleDateIdxs.length - 1;
+                slider.value = Math.min(slider.value, slider.max);
+                yearsDiv.innerHTML = '';
+                visibleDateIdxs.forEach((idx,i)=>
+                    yearsDiv.insertAdjacentHTML(
+                        'beforeend',
+                        `<span style="left:${(i/(slider.max || 1))*100}%;color:#ff0000;font-weight:700">${(dates[idx]||'').substr(0,4)}</span>`
+                ));
+            }
+
+            rebuildSliderDates();                     // первичная инициализация
+
+            document.getElementById('selectAll').addEventListener('change', function(e) {
+                const allCbs = document.querySelectorAll('#who input[type="checkbox"][data-name]');
+                allCbs.forEach(function(cb){
+                     cb.checked = e.target.checked;
+                     const layer = charLayers[cb.getAttribute('data-name')];
+                     if(layer) {
+                          layer.setVisible(e.target.checked);
+                     }
+                     const iconLayer = charLayers[cb.getAttribute('data-name') + '_icon'];
+                     if(iconLayer) {
+                          iconLayer.setVisible(e.target.checked);
+                     }
+                });
+                rebuildSliderDates();
+            });
+
+            document.getElementById('selectAll').addEventListener('change', function(e) {
+                const allCbs = document.querySelectorAll('#who input[type="checkbox"][data-name]');
+                allCbs.forEach(function(cb){
+                     cb.checked = e.target.checked;
+                     const layer = charLayers[cb.getAttribute('data-name')];
+                     if(layer) {
+                          layer.setVisible(e.target.checked);
+                     }
+                     const iconLayer = charLayers[cb.getAttribute('data-name') + '_icon'];
+                     if(iconLayer) {
+                          iconLayer.setVisible(e.target.checked);
+                     }
+                });
+                rebuildSliderDates();
+            });
+
+            const ICON_DIAM=32;                     // диаметр иконки = 2 * radius (16)
+            const iconOffset=idx=>[idx*ICON_DIAM,0]; // иконки в один ряд, без наложения
+            const placeAtDate = (ch, idx) =>
+                ch.moves.reduce(
+                    (acc, m) =>
+                        m[6] !== undefined && m[6] <= idx
+                        ? { loc: m[1], ctx: m[2], vol: m[3], part: m[4] }
+                        : acc,
+                    { loc: ch.moves[0][0], ctx: '', vol: '', part: '' }
+                );
+
+            const update=stepVis=>{
+                const globalIdx = visibleDateIdxs[stepVis] ?? 0;
+                stepLbl.textContent=stepVis;
+                yearBanner.textContent=dates[globalIdx]||'дата?';
+
+                const byPlace={};
+                chars.forEach(ch=>{
+                    if(!charLayers[ch.n].getVisible())return;
+                    const pc=placeAtDate(ch,globalIdx);
+                    (byPlace[pc.loc]??=[]).push({...ch,...pc});
+                });
+
+                /* позиции иконок */
+                Object.entries(byPlace).forEach(([loc,list])=>{
+                    list.forEach((ch,idx)=>{
+                        const base=ol.proj.fromLonLat(places[loc].c),
+                              [dx,dy]=iconOffset(idx),
+                              /* переводим смещение из пикселов в координаты карты */
+                              res=map.getView().getResolution(),
+                              coord=[base[0]+dx*res,base[1]-dy*res];
+                        const currentCoord = iconFeats[ch.n].getGeometry().getCoordinates();
+animateFeature(iconFeats[ch.n], currentCoord, coord, 200);
+                        /* подпись всплывающей подсказки для иконки персонажа */
+                        iconFeats[ch.n].setProperties({title: ch.n, ctx: ch.ctx || ''});
+                    });
+                });
+
+                /* наполнение правого фрейма */
+                const infoHTML = Object.entries(byPlace).reduce((html,[loc,arr])=>
+                    html + `<div class="placeHead">${loc}</div>` +
+                                                                                arr.map(c=>`
+         <div class="charItem" style="color:${c.col}">
+           ${c.n}
+           <span class="charCtx">${c.ctx || '—'}
+             <span class="ctxVol">(т.&nbsp;${c.vol||'?'}, ч.&nbsp;${c.part||'?'})</span>
+           </span>
+         </div>`).join('')
+                                                               ,'');
+                infoDiv.innerHTML=infoHTML||'<i>Нет выбранных персонажей</i>';
+
+                map.render();
+            };
+
+            legend.addEventListener('change',e=>{
+                if(e.target.type!=='checkbox')return;
+                const nm=e.target.dataset.name,vis=e.target.checked;
+                charLayers[nm].setVisible(vis);
+                charLayers[nm+'_icon'].setVisible(vis);
+                rebuildSliderDates();
+                update(+slider.value);
+            });
+            slider.addEventListener('input',e=>update(+e.target.value));
+
+function animateFeature(feature, start, end, duration) {
+    const startTime = performance.now();
+    function frame() {
+        const t = Math.min((performance.now() - startTime) / duration, 1);
+        const newCoord = [
+            start[0] + (end[0] - start[0]) * t,
+            start[1] + (end[1] - start[1]) * t
+        ];
+        feature.getGeometry().setCoordinates(newCoord);
+        if (t < 1) {
+            requestAnimationFrame(frame);
+        }
+    }
+    requestAnimationFrame(frame);
+}
+
+            /* старт */
+            rebuildSliderDates();
+            update(0);
+        }
+    </script>
+  </body>
+</html>

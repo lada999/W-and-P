@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Инфографика: Война и Мир</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: 'Georgia', serif;
+            background-color: #f5f5f5;
+            color: #333;
+            overflow: hidden;
+        }
+        
+        .presentation-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        
+        .slide {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            left: 0;
+            top: 0;
+            background-color: white;
+            display: none;
+            flex-direction: column;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            box-sizing: border-box;
+            padding: 20px;
+        }
+        
+        .slide.active {
+            display: flex;
+            opacity: 1;
+        }
+        
+        .slide-title {
+            font-size: 2.5em;
+            margin-bottom: 15px;
+            color: #8B0000;
+            font-weight: bold;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
+            flex-shrink: 0;
+        }
+        
+        .slide-content {
+            flex-grow: 1;
+            width: 100%;
+            height: calc(100% - 100px);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .slide-iframe {
+            flex-grow: 1;
+            width: 100%;
+            border: none;
+            min-height: 0;
+        }
+        
+        .nav-buttons {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            z-index: 10;
+        }
+        
+        .nav-button {
+            padding: 10px 25px;
+            background-color: #8B0000;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .nav-button:hover {
+            background-color: #A52A2A;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .nav-button:active {
+            transform: translateY(0);
+        }
+        
+        .slide-number {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            color: #8B0000;
+            font-size: 0.9em;
+        }
+        
+        .decoration {
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path fill="%238B0000" fill-opacity="0.1" d="M50 0 L100 50 L50 100 L0 50 Z"></path></svg>');
+            background-size: contain;
+            z-index: -1;
+        }
+        
+        .decoration.top-left {
+            top: -50px;
+            left: -50px;
+        }
+        
+        .decoration.bottom-right {
+            bottom: -50px;
+            right: -50px;
+            transform: rotate(45deg);
+        }
+        
+        .progress-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 5px;
+            background-color: #8B0000;
+            width: 0%;
+            transition: width 0.3s ease;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div class="presentation-container">
+        <div class="progress-bar"></div>
+        
+        <div class="decoration top-left"></div>
+        <div class="decoration bottom-right"></div>
+        
+        <!-- Слайд 1: Титульный -->
+        <div class="slide active" id="slide1">
+            <h1 class="slide-title">Война и Мир</h1>
+            <div class="slide-content">
+                Инфографика по роману Льва Толстого<br>
+                Анализ ключевых аспектов произведения
+                <iframe class="slide-iframe" src="./1.html"></iframe>
+            </div>
+            <div class="slide-number">1 / 6</div>
+        </div>
+        
+        <!-- Слайд 2: Основные персонажи -->
+        <div class="slide" id="slide2">
+            <h1 class="slide-title">Основные персонажи</h1>
+            <div class="slide-content">
+                [Здесь будет инфографика с основными персонажами]<br>
+                Пьер Безухов, Андрей Болконский, Наташа Ростова
+            </div>
+            <div class="slide-number">2 / 6</div>
+        </div>
+        
+        <!-- Слайд 3: Исторический контекст -->
+        <div class="slide" id="slide3">
+            <h1 class="slide-title">Исторический контекст</h1>
+            <div class="slide-content">
+                [Здесь будет хронология событий войны 1812 года]<br>
+                Сопоставление с сюжетными линиями романа
+            </div>
+            <div class="slide-number">3 / 6</div>
+        </div>
+        
+        <!-- Слайд 4: Темы произведения -->
+        <div class="slide" id="slide4">
+            <h1 class="slide-title">Ключевые темы</h1>
+            <div class="slide-content">
+                [Здесь будет диаграмма с основными темами]<br>
+                Война и мир, любовь и семья, поиск смысла жизни
+            </div>
+            <div class="slide-number">4 / 6</div>
+        </div>
+        
+        <!-- Слайд 5: Статистика -->
+        <div class="slide" id="slide5">
+            <h1 class="slide-title">Цифры и факты</h1>
+            <div class="slide-content">
+                [Здесь будет статистика по роману]<br>
+                Количество страниц, персонажей, лет написания
+            </div>
+            <div class="slide-number">5 / 6</div>
+        </div>
+        
+        <!-- Слайд 6: География -->
+        <div class="slide" id="slide6">
+            <h1 class="slide-title">Карта перемещений</h1>
+            <div class="slide-content">
+                <iframe class="slide-iframe"
+                     src="./movements.html?places=war_and_peace_places_osm.csv&moves=war_and_peace_movements.csv"
+                     title="Дополнительные материалы «Войны и мира»">
+                </iframe>  
+            </div>
+            <div class="slide-number">6 / 6</div>
+        </div>
+        
+        <div class="nav-buttons">
+            <button class="nav-button" id="prevBtn">Назад</button>
+            <button class="nav-button" id="nextBtn">Вперед</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const slides = document.querySelectorAll('.slide');
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            const progressBar = document.querySelector('.progress-bar');
+            
+            let currentSlide = 0;
+            
+            function showSlide(index) {
+                slides.forEach(slide => slide.classList.remove('active'));
+                slides[index].classList.add('active');
+                
+                // Обновление прогресс-бара
+                const progress = ((index + 1) / slides.length) * 100;
+                progressBar.style.width = `${progress}%`;
+                
+                // Обновление видимости кнопок
+                prevBtn.style.display = index === 0 ? 'none' : 'block';
+                nextBtn.style.display = index === slides.length - 1 ? 'none' : 'block';
+            }
+            
+            function nextSlide() {
+                if (currentSlide < slides.length - 1) {
+                    currentSlide++;
+                    showSlide(currentSlide);
+                }
+            }
+            
+            function prevSlide() {
+                if (currentSlide > 0) {
+                    currentSlide--;
+                    showSlide(currentSlide);
+                }
+            }
+            
+            // Обработчики кнопок
+            nextBtn.addEventListener('click', nextSlide);
+            prevBtn.addEventListener('click', prevSlide);
+            
+            // Обработчики клавиатуры
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'ArrowRight') {
+                    nextSlide();
+                } else if (e.key === 'ArrowLeft') {
+                    prevSlide();
+                }
+            });
+            
+            // Инициализация
+            showSlide(0);
+            
+            // Скрыть кнопку "Назад" на первом слайде
+            prevBtn.style.display = 'none';
+        });
+    </script>
+</body>
+</html>

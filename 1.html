@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Хронологическая схема "Войны и мира"</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+    body { font-family: "Segoe UI", Arial, sans-serif; margin: 0; background: #fcfcfa; }
+    #container {
+        display: flex; align-items: flex-start;
+        min-width: 100vw; overflow-x: auto;
+    }
+    #legend {
+        min-width: 200px; padding: 20px 10px 20px 30px;
+        background: #f3f3ed; border-right: 1px solid #ccc;
+        position: sticky; left: 0; top: 0; height: 100vh; overflow-y: auto;
+    }
+    #legend .legend-entry { display: flex; align-items: center; margin-bottom: 8px; font-size: 0.96em; }
+    .legend-color { width: 18px; height: 18px; margin-right: 9px; border-radius: 4px; border: 1px solid #999; display: inline-block; }
+    #timeline { overflow-x: auto; }
+    #validity-log { padding: 11px 20px; background: #fffbe0; font-size: 1.02em; color: #2b2902; border-bottom: 1px solid #ccc; margin-left:210px; }
+    svg { background: #f7f7f0; }
+    .event-rect { box-shadow: 0 2px 8px #0002; }
+    .event-text { pointer-events: none; white-space: pre-wrap; }
+    .date-label { font-size: 0.98em; fill: #5a5a59; text-anchor: middle; font-style: italic; font-weight: 540; }
+    .character-line { stroke-width: 3px; fill: none; opacity: 0.9; }
+    .event-rect:hover { stroke: #222; stroke-width: 3; }
+    .event-date { font-size: 0.89em; fill: #666; text-anchor: middle; pointer-events: none; }
+    .valid { color:#237b3a; }
+    .invalid { background:#f7ced2; border:1pt solid #b46b77; color:#b00; }
+    .truda { margin-top:25px; color: #970000; font-size: 2em;
+        font-family: 'Arial Black',Arial,Impact,sans-serif; letter-spacing: 8px; display: inline-block;
+        border:3px solid #970000; background: #fff; padding: 12px 26px 14px 26px; border-radius: 8px; }
+</style>
+</head>
+<body>
+<div id="validity-log"></div>
+<div id="container">
+    <div id="legend">
+        <h3>Персонажи:</h3>
+        <div id="legend-list"></div>
+    </div>
+    <div id="timeline">
+        <svg id="viz"></svg>
+    </div>
+</div>
+<script>
+const CSV_PATH = "events_1.csv";
+
+
+function isDateValid(dateStr){
+    // Проверка DD-MM-YYYY
+    return /^\d{2}-\d{2}-\d{4}$/.test(dateStr);
+}
+function getColor(idx) {
+    let pal1 = d3.schemeTableau10;
+    let pal2 = d3.schemePaired;
+    if (idx < pal1.length) return pal1[idx];
+    if (idx < pal2.length + pal1.length) return pal2[idx - pal1.length];
+    return d3.interpolateRainbow((idx % 15) / 15);
+}
+
+// Точный перенос по ширине строки внутри svg
+function wrapSvgText(text, maxWidth, fontSize, fontWeight) {
+    let context = d3.select("body").append("svg")
+        .style("visibility", "hidden")
+        .style("position", "absolute");
+    let testText = context.append("text")
+        .attr("font-size", fontSize)
+        .attr("font-weight", fontWeight)
+        .attr("font-family", "Segoe UI, Arial, sans-serif");
+    let words = text.split(/\s+/);
+    let lines = [], line = [];
+    words.forEach(word=>{
+        let testLine = [...line, word].join(" ");
+        testText.text(testLine);
+        let width = testText.node().getComputedTextLength();
+        if(width > maxWidth && line.length){
+            lines.push(line.join(" "));
+            line=[word];
+        }else{
+            line.push(word);
+        }
+    });
+    if(line.length) lines.push(line.join(" "));
+    context.remove();
+    return lines;
+}
+function getTextHeight(lines, fontSize, lineSpacing) {
+    return lines.length * fontSize + Math.max(0, (lines.length-1)*lineSpacing);
+}
+function getTextWidth(line, fontSize, fontWeight) {
+    // Получаем ширину строки с ее шрифтом!
+    let context = d3.select("body").append("svg")
+        .style("visibility", "hidden").style("position", "absolute");
+    let testText = context.append("text")
+        .attr("font-size", fontSize)
+        .attr("font-weight", fontWeight)
+        .attr("font-family", "Segoe UI, Arial, sans-serif")
+        .text(line);
+    let width = testText.node().getComputedTextLength();
+    context.remove();
+    return width;
+}
+////////////////////////////////////////////////////////////////////////////////////
+
+d3.csv(CSV_PATH, d3.autoType).then(function(rawdata) {
+    // ===== Валидация =====
+    let valid = [], invalid = [], errors = [];
+    rawdata.forEach((row,i)=>{
+        let errs = [];
+        if(!row.event_id || isNaN(row.event_id)) errs.push('Некорректный event_id');
+        if(!row.event_name) errs.push('Пустое название');
+        if(!row.date || !isDateValid(row.date)) errs.push('Неверная дата: "'+row.date+'"');
+        if(typeof row.characters!=='string') row.characters='';
+        let chs = row.characters.split(';').map(d=>d.trim()).filter(Boolean);
+        if(chs.length<1) errs.push('Нет персонажей');
+        if(!row.character_description) errs.push('Нет описания');
+        if(errs.length) invalid.push({row, index:i, errs});
+        else { row.characters=chs; valid.push(row);}
+    });
+    // ====== ЛОГ =====
+    let box = d3.select("#validity-log")
+        .attr("class", invalid.length ? "invalid" : "valid");
+    if(invalid.length){
+        box.html(`TRUDA! В ходе проверки CSV обнаружено <b>${invalid.length}</b> невалидных строк.<br>
+            Валидных событий: <b>${valid.length}</b> из ${rawdata.length}.<br>
+            <details style="margin-top:7px"><summary>Посмотреть ошибки:</summary>
+                <pre style="font-size:0.98em">${invalid.map(x=>`Строка #${x.index+2}: ${x.errs.join(', ')}`).join('\n')}</pre>
+              </details>
+              <div class="truda">TRUDA</div>
+        `);
+    } else { box.html(`Файл успешно загружен, все события валидны (${valid.length}).`);}
+    if(valid.length===0){
+        d3.select("#viz").append("text")
+            .attr("x",50).attr("y",50)
+            .attr("fill","red")
+            .attr("font-size","2em")
+            .attr("font-family","Arial Black,sans-serif")
+            .text("TRUDA: Нет валидных событий в CSV.");
+        d3.select("#viz").append("text")
+            .attr("x",50).attr("y",100)
+            .attr("fill","#6a0000")
+            .attr("font-size","1.3em")
+            .text("Проверьте структуру данных!");
+        return;
+    }
+    // -------------- Сортировка дат ------------
+    let allDates = Array.from(new Set(valid.map(d => d.date)));
+    allDates.sort((a, b) => {
+      let [da,ma,ya] = a.split('-').map(Number), [db,mb,yb] = b.split('-').map(Number);
+      return ya-yb || ma-mb || da-db;
+    });
+    let eventsByDate = {}; allDates.forEach(date=>eventsByDate[date]=[]);
+    valid.forEach(ev=>eventsByDate[ev.date].push(ev));
+    let allCharacters = [];
+    valid.forEach(ev => ev.characters.forEach(ch=>{
+        if(!allCharacters.includes(ch)) allCharacters.push(ch);
+    }));
+    let charColor = {}; allCharacters.forEach((ch,i)=>charColor[ch]=getColor(i));
+
+    // --------- Расположение блоков с учётом реальной высоты ---------
+    const colSpace = 280, blockPadX=20, blockPadY=16, blockSpacingY=18;
+    const titleFontSize=17, titleWeight=600, descrFontSize=14, descrWeight=400, lineSpacing=5, circleR=10;
+
+    // 1. Сначала готовим параметры блоков
+    allDates.forEach(date => {
+      eventsByDate[date].forEach(ev=>{
+        // Заголовок и описание по строкам
+        ev._titleLines = wrapSvgText(ev.event_name, 240-blockPadX*2, titleFontSize, titleWeight);
+        ev._descrLines = wrapSvgText(ev.character_description, 240-blockPadX*2, descrFontSize, descrWeight);
+
+        // минимальная ширина блока — вычислить по самым длинным строкам
+        let titleWs = ev._titleLines.map(line => getTextWidth(line, titleFontSize, titleWeight));
+        let descrWs = ev._descrLines.map(line => getTextWidth(line, descrFontSize, descrWeight));
+        let cont = Math.max(...titleWs, ...descrWs, (ev.characters.length*circleR*2+30));
+        ev._rectW = Math.min(Math.max(cont+blockPadX*2, 120), 240);
+
+        // Высота: заголовок + отступ + описание + кружки + вертикальные паддинги
+        ev._rectH =
+            blockPadY + getTextHeight(ev._titleLines, titleFontSize, lineSpacing)
+            + 5 + getTextHeight(ev._descrLines, descrFontSize, lineSpacing)
+            + 19 + 17 + blockPadY; // для кружков и подложки
+      });
+    });
+
+    // 2. Координаты блоков: накопительно по высотам (нет наложений)
+    let colX = [];
+    let colMaxW = [];
+    for(let i=0, X=36;i<allDates.length;i++){
+        let maxw = Math.max(...eventsByDate[allDates[i]].map(ev=>ev._rectW));
+        colX[i] = X;
+        colMaxW[i] = maxw;
+        X += maxw + colSpace;
+    }
+    let svgWidth = colX[colX.length-1]+colMaxW[colMaxW.length-1] + 96;
+    let svgHeight = 0;
+
+    // Расчёт Y в каждом столбце
+    let eventsCoord = {};
+    for(let i=0;i<allDates.length;i++) {
+      let y = 70;
+      eventsByDate[allDates[i]].forEach((ev,j)=>{
+        ev._x = colX[i];
+        ev._y = y;
+        eventsCoord[ev.event_id] = {col: i, row: j, ev: ev, x: ev._x, y: ev._y};
+        y += ev._rectH + blockSpacingY;
+        svgHeight = Math.max(svgHeight, y+90);
+      });
+    }
+
+    // Легенда
+    let legend = d3.select("#legend-list");
+    allCharacters.forEach(ch => {
+        let e=legend.append("div").attr("class","legend-entry");
+        e.append("span").attr("class","legend-color").style("background", charColor[ch]);
+        e.append("span").text(ch);
+    });
+
+    let svg = d3.select("#viz")
+        .attr("width", svgWidth).attr("height", svgHeight);
+
+    // --- Координаты кружков персонажей (по горизонтали) для каждого блока ---
+    function getCircleCoords(ev) {
+        let N = ev.characters.length;
+        let totW = (N*circleR*2)+((N-1)*6);
+        let baseX = ev._x + (ev._rectW-totW)/2 + circleR; // первый кружок
+        return ev.characters.map((d,i)=>({
+          pers: d,
+          cx: baseX + i*(circleR*2+6),
+          cy: ev._y + ev._rectH - circleR - 10
+        }));
+    }
+    // --- Для каждой персонажевой линии: поставить точки напротив своего кружка ---
+    let personNodePoints = {};
+    allCharacters.forEach(ch=>{
+      personNodePoints[ch] = [];
+      valid.forEach(ev=>{
+        let idx = ev.characters.indexOf(ch);
+        if(idx!==-1) {
+          let coords = getCircleCoords(ev);
+          personNodePoints[ch].push([
+            coords[idx].cx,
+            coords[idx].cy
+          ]);
+        }
+      });
+    });
+
+    // --- ЛИНИИ персонажей -- (из центра кружка к центру кружка) ---
+    allCharacters.forEach(ch=>{
+        let points = personNodePoints[ch];
+        if(points.length>1) svg.append("path")
+            .attr("class", "character-line")
+            .attr("d", d3.line().curve(d3.curveMonotoneX)(points))
+            .attr("stroke", charColor[ch])
+            .attr("filter","drop-shadow(0px 0px 2px #fff4)");
+    });
+
+    // Блоки и содержимое
+    allDates.forEach((date, i) => {
+        let events = eventsByDate[date];
+        svg.append("text")
+            .attr("x", colX[i] + colMaxW[i]/2)
+            .attr("y", svgHeight-32)
+            .attr("class", "date-label")
+            .text(date);
+        events.forEach(ev=>{
+            // Прямоугольник блока
+            svg.append("rect")
+                .attr("class","event-rect")
+                .attr("x",ev._x).attr("y",ev._y)
+                .attr("width",ev._rectW).attr("height",ev._rectH)
+                .attr("fill","#fffdea")
+                .attr("stroke","#b6b6b6")
+                .attr("stroke-width",2.1)
+                .attr("rx",14)
+                .attr("filter", "drop-shadow(1px 3px 8px #2222)");
+            // Заголовок (строки)
+            let y = ev._y + blockPadY + titleFontSize;
+            let txt = svg.append("text")
+                .attr("x",ev._x+ev._rectW/2)
+                .attr("y",y)
+                .attr("class","event-text")
+                .attr("text-anchor","middle")
+                .attr("font-size",titleFontSize)
+                .attr("font-weight",titleWeight)
+                .attr("fill","#282e13");
+            ev._titleLines.forEach((line,li)=>{
+                txt.append("tspan")
+                  .attr("x",ev._x+ev._rectW/2)
+                  .attr("y",y+li*(titleFontSize+lineSpacing))
+                  .text(line);
+            });
+            // Описание (строки)
+            let y2 = y + ev._titleLines.length*(titleFontSize+lineSpacing) + 5 + descrFontSize;
+            let dtxt = svg.append("text")
+                .attr("x",ev._x+ev._rectW/2)
+                .attr("y",y2)
+                .attr("class","event-text")
+                .attr("font-size",descrFontSize)
+                .attr("font-weight",descrWeight)
+                .attr("text-anchor","middle")
+                .attr("fill","#40401f");
+            ev._descrLines.forEach((line,li)=>{
+                dtxt.append("tspan")
+                  .attr("x",ev._x+ev._rectW/2)
+                  .attr("y",y2+li*(descrFontSize+lineSpacing))
+                  .text(line);
+            });
+            // Кружки персонажей
+            let circles = getCircleCoords(ev);
+            svg.selectAll(null)
+                .data(circles)
+                .enter().append("circle")
+                .attr("cx",d=>d.cx)
+                .attr("cy",d=>d.cy)
+                .attr("r",circleR)
+                .attr("fill",d=>charColor[d.pers])
+                .attr("stroke","#fff").attr("stroke-width",1.5);
+        });
+    });
+
+}).catch(function(error){
+    // Глобальная ошибка
+    console.error('[TRUDA] Ошибка загрузки CSV:', error);
+    d3.select("#viz").append("text")
+        .attr("x",50).attr("y",50)
+        .attr("fill","red")
+        .attr("font-size","2em")
+        .attr("font-family","Arial Black,sans-serif")
+        .text("TRUDA: Не удалось загрузить events_1.csv.");
+    d3.select("#validity-log").attr("class","invalid")
+        .html(`Ошибка загрузки/парсинга CSV-файла. <b>TRUDA</b>.<br>Подробности см. в консоли.`);
+});
+</script>
+</body>
+</html>
