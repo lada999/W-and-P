@@ -2,76 +2,126 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Облако слов из CSV</title>
-    <script src="https://d3js.org/d3.v7.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/d3-cloud@1/build/d3.layout.cloud.min.js"></script>
+    <title>Исследование "Война и Мир": статистика слов</title>
     <style>
-        body { font-family: Arial, sans-serif; }
-        #word-cloud { width: 800px; height: 600px; margin: auto; }
+        body { font-family: sans-serif; margin: 40px; }
+        h1 { font-size: 2em; }
+        #chart-container { width: 90vw; height: 60vh; }
+        label { font-size: 1.1em; cursor: pointer; }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <h2>Облако слов из файла word_statistics.csv</h2>
-    <input type="file" id="fileInput" accept=".csv">
-    <div id="word-cloud"></div>
+    <h1>Статистика использования слов в романе «Война и мир»</h1>
+    <label>
+        <input type="checkbox" id="stopwordsCheckbox" checked>
+        Показывать служебные слова (предлоги, местоимения, частые сокращения...)
+    </label>
+    <div id="chart-container">
+        <canvas id="wordChart"></canvas>
+    </div>
+    <p>На графике представлены <b>топ‑20 самых частых слов</b> из произведения. Обработку выполнил bash-скрипт.</p>
+    <script>
+        // Расширенный список служебных слов (все в нижнем регистре), включая ваши новые слова
+        const stopwords = [
+            // Запрошенное пользователем дополнение
+            "это", "что", "все", "ещё", "еще", "него", "во", "том", "мне", "был",
+            // предлоги
+            "в", "на", "с", "по", "из", "за", "от", "до", "для", "без", "об", "у", "к", "при", "про", "под", "над", "о", "между", "через",
+            // союзы и частицы
+            "и", "но", "а", "или", "да", "ли", "же", "то", "как", "чтобы", "если", "то", "даже", "ни", "пусть", "раз", "только", "не", "бы",
+            // местоимения и их формы
+            "я", "ты", "он", "она", "оно", "мы", "вы", "они",
+            "его", "ее", "её", "их", "ему", "ей", "им", "нам", "вам", "меня", "тебя", "нас", "вас", "себя", "свой", "твой", "ваш", "ихний",
+            // указательные, относительные, вопросительные
+            "этот", "этого", "этому", "этом", "этим", "эти", "этих", "эта", "эту", "тот", "та", "то", "те", "тем", "тех", "того", "чем", "чем-то",
+            "какой", "какая", "какое", "какие", "каких", "который", "которого", "которому", "котором",
+            // обстоятельственные
+            "там", "туда", "тут", "здесь", "теперь", "сюда", "отсюда", "затем", "потом",
+            // числительные и римские числа
+            "i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii", "xiii", "xiv", "xv", "xvi", "xvii", "xviii", "xix", "xx",
+            // фрагменты сокращений, обозначений, имён
+            "г", "гг", "грн", "стр", "рис", "ст", "см", "р", "н", "д", "м", "п", "т", "л", "е", "нн", "ф", "б",
+            "пьер", "андрей", "николай", "марья", "наташа", "анна", "иван", "петя", "соня", "анатоль", "долохов", "кутузов", "безухов", "балконская", "болконский", "ростова", "курягин", "ген",
+            "сам", "сами", "своё", "тут", "так", "такой", "также", "уже", "быть", "оно", "он", "она", "они", "его", "её", "их",
+            "изд", "р", "стр", "г", "ii", "i", "iii", "iv", "v"
+        ];
 
-<script>
-    document.getElementById('fileInput').addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = function(event) {
-            const csvStr = event.target.result;
-            const data = d3.csvParse(csvStr);
-
-            // Преобразуем данные
-            const words = data.map(d => ({
-                text: d.word,
-                size: +d.count
-            }));
-
-            drawCloud(words);
-        };
-        reader.readAsText(file);
-    });
-
-    function drawCloud(words) {
-        d3.select("#word-cloud").selectAll("*").remove();
-
-        let minSize = d3.min(words, d => d.size);
-        let maxSize = d3.max(words, d => d.size);
-
-        const fontSizeScale = d3.scaleLinear()
-            .domain([minSize, maxSize])
-            .range([20, 120]); // Размеры шрифта
-
-        d3.layout.cloud()
-            .size([800, 600])
-            .words(words)
-            .padding(5)
-            .rotate(() => ~~(Math.random() * 2) * 90)
-            .fontSize(d => fontSizeScale(d.size))
-            .on("end", draw)
-            .start();
-
-        function draw(words) {
-            d3.select("#word-cloud")
-              .append("svg")
-              .attr("width", 800)
-              .attr("height", 600)
-              .append("g")
-              .attr("transform", "translate(400,300)")
-              .selectAll("text")
-              .data(words)
-              .enter().append("text")
-              .style("font-size", d => fontSizeScale(d.size) + "px")
-              .style("fill", (_, i) => d3.schemeCategory10[i % 10])
-              .attr("text-anchor", "middle")
-              .attr("transform", d => `translate(${d.x},${d.y})rotate(${d.rotate})`)
-              .text(d => d.text);
+        function isStopWord(word) {
+            return stopwords.includes(word.toLowerCase());
         }
-    }
-</script>
+
+        let csvData = [];
+        let chart;
+
+        async function loadCSV(filename) {
+            const resp = await fetch(filename);
+            const text = await resp.text();
+            const lines = text.trim().split('\n');
+            lines.shift();
+
+            return lines.map(line => {
+                const idx = line.lastIndexOf(",");
+                const word = line.slice(0, idx);
+                const count = Number(line.slice(idx + 1));
+                return { word: word, count: count };
+            });
+        }
+
+        // Получить Топ-N (20) с фильтрацией по галочке
+        function getTopWords(data, includeStopwords, N) {
+            let filtered = includeStopwords
+                ? data
+                : data.filter(d => !isStopWord(d.word));
+            return filtered.slice(0, N);
+        }
+
+        function renderChart(includeStopwords = true) {
+            let topWords = getTopWords(csvData, includeStopwords, 20);
+
+            const ctx = document.getElementById('wordChart').getContext('2d');
+            if (chart) chart.destroy();
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: topWords.map(d => d.word),
+                    datasets: [{
+                        label: 'Частота',
+                        data: topWords.map(d => d.count),
+                        backgroundColor: 'rgba(54, 162, 235, 0.6)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false },
+                        title: {
+                            display: true,
+                            text: '20 самых частых слов' + (includeStopwords ? '' : ' (без служебных)')
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Количество' }
+                        },
+                        x: {
+                            title: { display: true, text: 'Слово' }
+                        }
+                    }
+                }
+            });
+        }
+
+        loadCSV('word_statistics.csv').then(data => {
+            csvData = data;
+            csvData.sort((a, b) => b.count - a.count);
+            renderChart(document.getElementById('stopwordsCheckbox').checked);
+        });
+
+        document.getElementById('stopwordsCheckbox').addEventListener('change', function() {
+            renderChart(this.checked);
+        });
+    </script>
 </body>
 </html>
