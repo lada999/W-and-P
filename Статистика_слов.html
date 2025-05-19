@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Облако слов из CSV</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3-cloud@1/build/d3.layout.cloud.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        #word-cloud { width: 800px; height: 600px; margin: auto; }
+    </style>
+</head>
+<body>
+    <h2>Облако слов из файла word_statistics.csv</h2>
+    <input type="file" id="fileInput" accept=".csv">
+    <div id="word-cloud"></div>
+
+<script>
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const csvStr = event.target.result;
+            const data = d3.csvParse(csvStr);
+
+            // Преобразуем данные
+            const words = data.map(d => ({
+                text: d.word,
+                size: +d.count
+            }));
+
+            drawCloud(words);
+        };
+        reader.readAsText(file);
+    });
+
+    function drawCloud(words) {
+        d3.select("#word-cloud").selectAll("*").remove();
+
+        let minSize = d3.min(words, d => d.size);
+        let maxSize = d3.max(words, d => d.size);
+
+        const fontSizeScale = d3.scaleLinear()
+            .domain([minSize, maxSize])
+            .range([20, 120]); // Размеры шрифта
+
+        d3.layout.cloud()
+            .size([800, 600])
+            .words(words)
+            .padding(5)
+            .rotate(() => ~~(Math.random() * 2) * 90)
+            .fontSize(d => fontSizeScale(d.size))
+            .on("end", draw)
+            .start();
+
+        function draw(words) {
+            d3.select("#word-cloud")
+              .append("svg")
+              .attr("width", 800)
+              .attr("height", 600)
+              .append("g")
+              .attr("transform", "translate(400,300)")
+              .selectAll("text")
+              .data(words)
+              .enter().append("text")
+              .style("font-size", d => fontSizeScale(d.size) + "px")
+              .style("fill", (_, i) => d3.schemeCategory10[i % 10])
+              .attr("text-anchor", "middle")
+              .attr("transform", d => `translate(${d.x},${d.y})rotate(${d.rotate})`)
+              .text(d => d.text);
+        }
+    }
+</script>
+</body>
+</html>

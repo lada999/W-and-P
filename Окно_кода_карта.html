@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Код карты по войне и миру</title>
+    <style>
+        body {
+            background: #faf7f2;
+        }
+        .container {
+            width: 90%;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 24px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 18px rgba(0,0,0,0.07);
+        }
+        h2 {
+            text-align: center;
+            color: #444221;
+            font-size: 1.32em;
+            margin-bottom: 30px;
+        }
+        .code-window {
+            background: #1d1a16;
+            color: #f8f6f0;
+            border: 3px solid #ff861b; /* ярко-оранжевая обводка */
+            border-radius: 10px;
+            box-shadow: 0 2px 16px rgba(255,134,27,0.09);
+            padding: 18px 15px 18px 18px;
+            overflow-x: auto;
+            overflow-y: auto;
+            max-height: 480px;
+            min-height: 180px;
+            font-family: 'JetBrains Mono', 'Fira Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+            font-size: 16px;
+            scrollbar-width: thin;
+            scrollbar-color: #ff861b #2c251a; /* для Firefox */
+        }
+        .code-window pre {
+            margin: 0;
+            min-width: 600px;
+        }
+
+        /* Стилизация скроллбаров для Webkit-браузеров */
+        .code-window::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+            background: #231a11;
+        }
+        .code-window::-webkit-scrollbar-thumb {
+            background: #ff861b;
+            border-radius: 6px;
+        }
+        .code-window::-webkit-scrollbar-track {
+            background: #231a11;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Код карты по войне и миру</h2>
+        <div class="code-window" id="codeWindow">
+            Загрузка...
+        </div>
+    </div>
+
+    <script>
+        fetch('movements.html')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Не удалось загрузить файл');
+                }
+                return response.text();
+            })
+            .then(code => {
+                const codeEscaped = code
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;");
+                document.getElementById('codeWindow').innerHTML =
+                    '<pre>' + codeEscaped + '</pre>';
+            })
+            .catch(error => {
+                document.getElementById('codeWindow').textContent =
+                    'Ошибка загрузки файла: ' + error.message;
+            });
+    </script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!-- main.html -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Код презентации</title>
+    <style>
+        /* ...стили, как выше... */
+        body { background: #f0f4fa; }
+        .container {
+            width: 90%; max-width: 900px; margin: 40px auto;
+            padding: 24px; background: white; border-radius: 10px;
+            box-shadow: 0 2px 18px rgba(0,0,0,0.07);
+        }
+        h2 { text-align: center; color: #23406d; font-size: 1.32em; margin-bottom: 30px; }
+        .code-window {
+            background: #191f26; color: #e2eaff; border: 3px solid #3477ff;
+            border-radius: 10px; box-shadow: 0 2px 16px rgba(52,119,255,0.09);
+            padding: 18px 15px 18px 18px; overflow-x: auto; overflow-y: auto;
+            max-height: 480px; min-height: 180px;
+            font-family: 'JetBrains Mono', 'Fira Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+            font-size: 16px;
+            scrollbar-width: thin; scrollbar-color: #3477ff #232a3a;
+        }
+        .code-window pre { margin: 0; min-width: 600px; }
+        .code-window::-webkit-scrollbar { width: 10px; height: 10px; background: #24304a; }
+        .code-window::-webkit-scrollbar-thumb { background: #3477ff; border-radius: 6px; }
+        .code-window::-webkit-scrollbar-track { background: #24304a; border-radius: 6px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Код презентации</h2>
+        <div class="code-window" id="codeWindow">
+            Загрузка...
+        </div>
+    </div>
+
+    <script>
+        fetch('index.html')
+            .then(response => response.text())
+            .then(text => {
+                const codeEscaped = text
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+                document.getElementById('codeWindow').innerHTML = '<pre>' + codeEscaped + '</pre>';
+            })
+            .catch(error => {
+                document.getElementById('codeWindow').textContent = "Ошибка загрузки файла: " + error;
+            });
+    </script>
+</body>
+</html>
