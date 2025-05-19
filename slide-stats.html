@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Исследование "Война и Мир": статистика слов</title>
+    <style>
+        body { font-family: sans-serif; margin: 40px; }
+        h1 { font-size: 2em; }
+        #chart-container { width: 90vw; height: 60vh; }
+        label { font-size: 1.1em; cursor: pointer; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h1>Статистика использования слов в романе «Война и мир»</h1>
+    <label>
+        <input type="checkbox" id="stopwordsCheckbox" checked>
+        Показывать служебные слова (предлоги, местоимения, частые сокращения...)
+    </label>
+    <div id="chart-container">
+        <canvas id="wordChart"></canvas>
+    </div>
+    <p>На графике представлены <b>топ‑20 самых частых слов</b> из произведения. Обработку выполнил bash-скрипт.</p>
+    <script>
+        // Расширенный список служебных слов, местоимений, союзов, сокращений (по одному в нижнем регистре)
+        const stopwords = [
+            // предлоги
+            "в", "на", "с", "по", "из", "за", "от", "до", "для", "без", "об", "у", "к", "при", "про", "под", "над", "о", "между", "через",
+            // союзы и частицы
+            "и", "но", "а", "или", "да", "что", "ли", "же", "то", "как", "чтобы", "если", "то", "даже", "ни", "пусть", "раз", "только", "не", "бы",
+            // местоимения и их формы
+            "я", "ты", "он", "она", "оно", "мы", "вы", "они",
+            "его", "ее", "её", "их", "ему", "ей", "им", "нам", "вам", "меня", "тебя", "нас", "вас", "себя", "свой", "твой", "ваш", "ихний",
+            // указательные, относительные, вопросительные и прочие местоимения
+            "этот", "этого", "этому", "этом", "этим", "эти", "этих", "этих", "эта", "эту", "тот", "та", "то", "те", "тем", "тех", "того", "чем", "чем-то",
+            "какой", "какая", "какое", "какие", "каких", "который", "которого", "которому", "котором",
+            // обстоятельственные
+            "там", "туда", "тут", "здесь", "теперь", "сюда", "отсюда", "затем", "потом",
+            // числительные и римские числа
+            "i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii", "xiii", "xiv", "xv", "xvi", "xvii", "xviii", "xix", "xx",
+            // аббревиатуры, сокращения, буквенные обозначения
+            "г", "гг", "грн", "стр", "рис", "ст", "см", "р", "н", "д", "м", "п", "т", "л", "е", "нн", "ф", "б",
+            // имена авторов и героев
+            "пьер", "андрей", "николай", "марья", "наташа", "анна", "иван", "петя", "соня", "анатоль", "долохов", "кутузов", "безухов", "балконская", "болконский", "ростова", "курягин", "ген",
+            // ещё часто встречающиеся слова и формы
+            "сам", "сами", "своё", "тут", "так", "такой", "также", "ещё", "уже", "быть", "оно", "он", "она", "они", "его", "её", "их",
+            "изд", "р", "стр", "г", // ваши слова
+            // часто встречающиеся буквы/цифры в тексте, возможно обозначения (типа героев, частей и т.д.)
+            "ii", "i", "iii", "iv", "v"
+        ];
+
+        // Функция проверки стоп-слова (без учета регистра!)
+        function isStopWord(word) {
+            return stopwords.includes(word.toLowerCase());
+        }
+
+        let csvData = []; // Весь CSV
+        let chart;        // Объект Chart.js
+
+        // Чтение и разбор CSV-файла
+        async function loadCSV(filename) {
+            const resp = await fetch(filename);
+            const text = await resp.text();
+            const lines = text.trim().split('\n');
+            lines.shift(); // пропустить заголовок
+
+            return lines.map(line => {
+                const idx = line.lastIndexOf(",");
+                const word = line.slice(0, idx);
+                const count = Number(line.slice(idx + 1));
+                return { word: word, count: count };
+            });
+        }
+
+        // Получить Топ-N (20) с фильтрацией по галочке
+        function getTopWords(data, includeStopwords, N) {
+            let filtered = includeStopwords
+                ? data
+                : data.filter(d => !isStopWord(d.word));
+            return filtered.slice(0, N);
+        }
+
+        // Построение/обновление диаграммы
+        function renderChart(includeStopwords = true) {
+            let topWords = getTopWords(csvData, includeStopwords, 20);
+
+            const ctx = document.getElementById('wordChart').getContext('2d');
+            if (chart) chart.destroy();
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: topWords.map(d => d.word),
+                    datasets: [{
+                        label: 'Частота',
+                        data: topWords.map(d => d.count),
+                        backgroundColor: 'rgba(54, 162, 235, 0.6)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false },
+                        title: {
+                            display: true,
+                            text: '20 самых частых слов' + (includeStopwords ? '' : ' (без служебных)')
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Количество' }
+                        },
+                        x: {
+                            title: { display: true, text: 'Слово' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Запуск: загрузим и построим график
+        loadCSV('word_statistics.csv').then(data => {
+            csvData = data;
+            csvData.sort((a, b) => b.count - a.count); // Перестраховка
+            renderChart(document.getElementById('stopwordsCheckbox').checked);
+        });
+
+        // Когда меняется галочка — перестроить график
+        document.getElementById('stopwordsCheckbox').addEventListener('change', function() {
+            renderChart(this.checked);
+        });
+    </script>
+</body>
+</html>

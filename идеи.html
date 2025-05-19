@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Война и мир — основные темы</title>
+    <style>
+        html, body {
+            width: 100vw;
+            height: 100vh;
+            min-width: 1100px;
+            min-height: 1000px;
+            overflow: auto;
+            background: #f5f9fa;
+            margin: 0; padding: 0;
+        }
+        body { display: flex; flex-direction: row; }
+        .legend {
+            width: 33vw; min-width: 275px; max-width: 570px;
+            background: #fafbfc;
+            box-shadow: 2px 0 18px 0 #c2daf3ae;
+            padding: 36px 30px 28px 36px;
+            box-sizing: border-box;
+            position: fixed;
+            inset: 0 auto 0 0;
+            height: 100vh;
+            z-index: 50;
+            overflow-y: auto;
+        }
+        .legend h2 { color: #20497a; font-size: 24px; margin: 0 0 28px 0; text-align: center; }
+        .legend-list { list-style: none; padding-left: 0; margin: 0;}
+        .legend-line { display: flex; align-items: flex-start; margin-bottom: 25px; }
+        .legend-color {
+            width: 24px; height: 24px; border-radius: 50%; margin-right: 15px; margin-top: 3px;
+            box-sizing: border-box;
+            box-shadow: 0 2px 7px #b7cdf2a7; border: 2px solid #fff;
+            flex-shrink: 0;
+        }
+        .clr-blue      { background: #3695e7; }
+        .clr-orange    { background: #e78336; }
+        .clr-green     { background: #56bc54; }
+        .clr-dgreen    { background: #217533; }
+        .clr-deepblue  { background: #234478; }
+        .clr-yellow    { background: #e6e064; }
+        .clr-brown     { background: #a47b53; }
+        .clr-deeporange{ background: #bc734b; }
+        .clr-burgundy  { background: #a42840;}
+        .clr-black     { background: #444; }
+        .legend-text {
+            font-size: 18px;
+            color: #1c222a;
+            font-family: "Georgia", serif;
+            line-height: 1.46;
+        }
+        .main-content {
+            margin-left: 33vw;
+            width: 67vw;
+            min-width: 770px;
+            max-width: 1700px;
+            padding: 44px 0 24px 0;
+            overflow: visible;
+        }
+        .title { text-align: center; font-size: 32px; font-weight: 700; color: #254a80; margin-bottom: 13px; }
+        .subtitle { text-align: center; font-size: 17px; color: #5a6d81; margin-bottom: 28px; }
+        .svg-wrap { width: 99%; margin: 0 auto; overflow: visible;}
+        .svg-label {
+            font-family: Georgia, serif;
+            font-weight: 700;
+            font-size: 26px;
+            opacity: 0.97;
+            text-anchor: middle;
+            paint-order: stroke fill;
+            stroke: #fff;
+            stroke-width: 5px;
+            filter: drop-shadow(0 2px 6px #fff8);
+        }
+        /* Цвета */
+        .label-blue      { fill: #275989;}
+        .label-orange    { fill: #b45f0b;}
+        .label-green     { fill: #347c2a;}
+        .label-dgreen    { fill: #226934;}
+        .label-deepblue  { fill: #20345a;}
+        .label-yellow    { fill: #a89c29;}
+        .label-brown     { fill: #8d6840;}
+        .label-deeporange{ fill: #985321;}
+        .label-burgundy  { fill: #912237;}
+        .label-black     { fill: #282828;}
+        @media (max-width: 900px) {
+            body { flex-direction: column; min-width: 0; }
+            .legend {
+                position: static !important; width: 100vw; min-width: 0; max-width: none; height: auto;
+                box-shadow: none; padding: 22px 5vw 10px 7vw;
+            }
+            .main-content { margin-left: 0; width: 100vw; min-width: 0; max-width: none; }
+            .svg-wrap { width: 100vw; min-width: 0; }
+        }
+    </style>
+</head>
+<body>
+    <aside class="legend">
+        <h2>Легенда</h2>
+        <ul class="legend-list">
+            <li class="legend-line"><span class="legend-color clr-blue"></span>
+                <span class="legend-text"><b>Война:</b>
+                    <br>Война у Толстого — это не торжество героизма, а неумолимая стихия, сталкивающаяся с каждым человеком лицом к лицу. Это испытание, в котором исчезают иллюзии и обнажаются истинные человеческие качества. На поле боя происходит крушение привычного мира, и только через страдания и потери человек может постичь глубинный смысл жизни и смерти.
+                </span>
+            </li>
+            <li class="legend-line"><span class="legend-color clr-orange"></span>
+                <span class="legend-text"><b>Семья на войне:</b>
+                    <br>Вихрь войны проносится сквозь судьбы семей, испытывая на прочность любовь, верность, внутренний стержень. На фоне военных потрясений раскрывается истинная ценность дома, родных и поддержки. Потери, тревога, надежда становятся общими испытаниями, делая семью и ближних единственной настоящей опорой в хаосе истории.
+                </span>
+            </li>
+            <li class="legend-line"><span class="legend-color clr-green"></span>
+                <span class="legend-text"><b>Семья:</b>
+                    <br>Дом и семья — пристань, где душа находит покой и опору. Здесь зарождается человеческое достоинство, нравственная чистота, способность к любви и самопожертвованию. Семья — особый внутренний мир для героев, точка отсчета и возвращения даже среди потрясений эпохи.
+                </span>
+            </li>
+            <li class="legend-line"><span class="legend-color clr-dgreen"></span>
+                <span class="legend-text"><b>Любовь и долг:</b>
+                    <br>Толстой показывает, что любовь — не просто чувство, а основа для поступка, для служения. Человек становится героем тогда, когда соединяет личное счастье с ответственностью перед близкими, народом, Отечеством. Настоящее чувство всегда требует жертвенности и обретает смысл через долг.
+                </span>
+            </li>
+            <li class="legend-line"><span class="legend-color clr-deepblue"></span>
+                <span class="legend-text"><b>Движение истории:</b>
+                    <br>Важнейшие события эпохи неизменно определяются не волей "великих личностей", а совокупным движением народа. Истинный двигатель истории — массы, совместная жизнь и смиренное исполнение своего долга каждым человеком. Это противостояние культу личности — глубокий гуманизм Толстого.
+                </span>
+            </li>
+            <li class="legend-line"><span class="legend-color clr-yellow"></span>
+                <span class="legend-text"><b>Народ — основа истории:</b>
+                    <br>Русский народ у Толстого — не толпа, а совокупность живых личностей, объединённых общим трудом, верой, терпением и добротой. Без них невозможна ни победа, ни развитие, ни культура страны.
+                </span>
+            </li>
+            <li class="legend-line"><span class="legend-color clr-brown"></span>
+                <span class="legend-text"><b>Крестьянство:</b>
+                    <br>В крестьянстве Толстой видит источник силы нации, глубокую природную мудрость, корни нравственности. Их труд формирует народный характер, их судьба — мерило всей эпохи.
+                </span>
+            </li>
+            <li class="legend-line"><span class="legend-color clr-deeporange"></span>
+                <span class="legend-text"><b>Воля случая и поле битвы:</b>
+                    <br>Судьба героев определяется не столько замыслами полководцев, сколько неведомой, подчас трагикомичной игрой обстоятельств и сил народного движения. В самые критические моменты вступает в действие воля случая.
+                </span>
+            </li>
+            <li class="legend-line"><span class="legend-color clr-burgundy"></span>
+                <span class="legend-text"><b>Народная победа:</b>
+                    <br>Именно безымянный народ становится героем войны и залогом победы. Эта победа рождается там, где сливаются воедино мужества миллионов — не в приказах, а в сердца людей и их общей вере.
+                </span>
+            </li>
+            <li class="legend-line"><span class="legend-color clr-black"></span>
+                <span class="legend-text"><b>Человек и судьба:</b>
+                    <br>На стыке истории и личной жизни раскрывается суть выбора героя. Личность сталкивается с необходимостью ответственности, и становится сильней, когда научится соединять свои идеалы с велениями времени.
+                </span>
+            </li>
+        </ul>
+    </aside>
+    <main class="main-content">
+        <div class="title">Схема основных тем романа «Война и мир»</div>
+        <div class="subtitle">Краткие формулы тем — только на схеме; полные художественные смыслы — в легенде слева</div>
+        <div class="svg-wrap">
+        <svg viewBox="0 0 1500 1200" width="100%" height="1050" style="background:transparent;display:block;">
+            <!-- Максимально сближенные крупные сферы -->
+            <circle cx="420" cy="600" r="240" fill="#a7c7e7" fill-opacity="0.47" stroke="#2970ae" stroke-width="6"/>
+            <circle cx="695" cy="450" r="240" fill="#e7b8a7" fill-opacity="0.35" stroke="#cf8c67" stroke-width="6"/>
+            <circle cx="940" cy="730" r="240" fill="#b5e7a7" fill-opacity="0.35" stroke="#39b049" stroke-width="6"/>
+            <circle cx="1200" cy="420" r="240" fill="#faf6b1" fill-opacity="0.47" stroke="#b5b045" stroke-width="6"/>
+
+            <!-- Темы -->
+            <text x="240" y="185" font-size="30" font-weight="bold" fill="#2984b0">Война</text>
+            <text x="490" y="1090" font-size="29" font-weight="bold" fill="#34a13b">Семья</text>
+            <text x="1005" y="1160" font-size="25" font-weight="bold" fill="#2f374a">Движение истории</text>
+            <text x="1370" y="210" font-size="28" font-weight="bold" fill="#9b9224">Крестьянство</text>
+
+            <!-- Короткие подписи в нужных местах -->
+            <text x="330" y="480" class="svg-label label-blue">Война разлучает сердца</text>
+            <text x="325" y="660" class="svg-label label-orange">Семья хранит надежду</text>
+            <text x="610" y="970" class="svg-label label-green">Дом — пристань любви</text>
+            <text x="800" y="680" class="svg-label label-dgreen">Любовь — подвиг духа</text>
+            <text x="1050" y="1050" class="svg-label label-deepblue">Судьбы творят историю</text>
+            <text x="1240" y="785" class="svg-label label-yellow">Сила народа — в труде</text>
+            <text x="1375" y="410" class="svg-label label-brown">Корни — в земле</text>
+            <text x="600" y="420" class="svg-label label-deeporange">Случай сильнее замысла</text>
+            <text x="1150" y="340" class="svg-label label-burgundy">Победа приходит народу</text>
+            <text x="890" y="600" class="svg-label label-black">Человек на перепутье</text>
+        </svg>
+        </div>
+    </main>
+</body>
+</html>
