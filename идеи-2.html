@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Визуализация идей по множествам</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin:20px }
+    #content { display:flex; gap:20px }
+    #diagram-container {
+      flex:3; width:800px; height:600px;
+      border:1px solid #ccc; border-radius:5px;
+      overflow-x:scroll; overflow-y:scroll; position:relative;
+    }
+    #diagram-container::-webkit-scrollbar {
+      width:12px; height:12px
+    }
+    #diagram-container::-webkit-scrollbar-track { background:#f0f0f0 }
+    #diagram-container::-webkit-scrollbar-thumb {
+      background:#888; border-radius:6px
+    }
+    #diagram-container::-webkit-scrollbar-thumb:hover { background:#555 }
+    #diagram-container { scrollbar-width:thin; scrollbar-color:#888 #f0f0f0 }
+    #legend {
+      flex:1; border:1px solid #ccc; border-radius:5px;
+      padding:10px; overflow-y:auto; max-height:80vh
+    }
+    .circle {
+      fill-opacity:0.3; stroke:#333; stroke-width:1.5px
+    }
+    .circle:hover {
+      fill-opacity:0.5; stroke-width:2px
+    }
+    .idea-point {
+      fill:#333; stroke:#fff; stroke-width:2px; cursor:pointer
+    }
+    .idea-text {
+      font-size:12px; text-anchor:middle; pointer-events:none
+    }
+    .legend-item {
+      margin-bottom:10px; padding:5px; background:#f5f5f5; border-radius:3px
+    }
+    .legend-item:hover { background:#e9e9e9 }
+    .legend-title { font-weight:bold; margin-bottom:4px }
+    .tooltip {
+      position:absolute; pointer-events:none;
+      background:rgba(240,240,240,0.9); border:1px solid #888;
+      border-radius:5px; padding:8px; font-size:13px; display:none
+    }
+    #error-message { color:red; margin-bottom:10px; display:none }
+  </style>
+</head>
+<body>
+  <h1>Визуализация идей по множествам</h1>
+  <div id="error-message"></div>
+  <div id="content">
+    <div id="diagram-container"></div>
+    <div id="legend">
+      <h2>Легенда</h2>
+      <div id="legend-items"></div>
+    </div>
+  </div>
+  <script>
+    function showError(msg){
+      d3.select("#error-message")
+        .style("display","block")
+        .text(msg);
+    }
+    function clearAll(){
+      d3.select("#diagram-container").html("");
+      d3.select("#legend-items").html("");
+      d3.select("#error-message").style("display","none");
+      d3.selectAll(".tooltip").remove();
+    }
+    function layoutCircle(center,R,N,pr){
+      if(N<=1) return [center.slice()];
+      const pts=[], step=2*Math.PI/N, r0=R-pr*1.8;
+      for(let i=0;i<N;i++){
+        const a=i*step+step/2-Math.PI/2;
+        pts.push([
+          center[0]+r0*Math.cos(a),
+          center[1]+r0*Math.sin(a)
+        ]);
+      }
+      return pts;
+    }
+    function visualize(data){
+      clearAll();
+      if(!data.length){ showError("Нет данных"); return }
+      const ideas=new Map();
+      data.forEach(d=>{
+        if(!d.идея||!d.множество) return;
+        const key=d.идея.trim();
+        if(!ideas.has(key)) ideas.set(key,{name:key,sets:[],attrs:[]});
+        d.множество.split(";").map(s=>s.trim()).forEach(s=>{
+          if(s&&!ideas.get(key).sets.includes(s))
+            ideas.get(key).sets.push(s);
+        });
+        ideas.get(key).attrs.push(d.характеристика||"");
+      });
+      const allSets=Array.from(
+        new Set(data.flatMap(d=>d.множество.split(";").map(s=>s.trim())))
+      ).filter(s=>s);
+      if(allSets.length<1||allSets.length>3){
+        showError("Поддерживаются только 1–3 множества");
+        return;
+      }
+      const width=800, height=600,
+            center=[width/2,height/2],
+            margin=20, pr=10;
+      let r=Math.min((width-4*margin)/3,(height-4*margin)/3);
+      if(r>160) r=160;
+      const overlapK= allSets.length===3?1.3:1.2,
+            d=(r*overlapK)/2;
+      const centers={};
+      if(allSets.length===3){
+        for(let i=0;i<3;i++){
+          const a=-Math.PI/2 + i*2*Math.PI/3;
+          centers[allSets[i]]=[
+            center[0]+d*Math.cos(a),
+            center[1]+d*Math.sin(a)
+          ];
+        }
+      } else if(allSets.length===2){
+        centers[allSets[0]]=[center[0]-d/2,center[1]];
+        centers[allSets[1]]=[center[0]+d/2,center[1]];
+      } else {
+        centers[allSets[0]]=center.slice();
+      }
+      const svg=d3.select("#diagram-container")
+                  .append("svg")
+                  .attr("width",width)
+                  .attr("height",height)
+                  .style("display","block");
+      const tooltip=d3.select("body")
+                      .append("div")
+                      .attr("class","tooltip");
+      const color=d3.scaleOrdinal(d3.schemeTableau10).domain(allSets);
+      allSets.forEach(s=>{
+        const c=centers[s];
+        svg.append("circle")
+           .attr("class","circle")
+           .attr("cx",c[0]).attr("cy",c[1]).attr("r",r)
+           .attr("fill",color(s));
+        svg.append("text")
+           .attr("class","idea-text")
+           .attr("x",c[0]).attr("y",c[1]-r-8)
+           .text(s);
+      });
+      const zoneRsingle=r*0.6,
+            zoneRpair  =r*0.3,
+            zoneRtriple=r*0.2;
+      // вычисляем центры зон одиночных
+      const singleZone={};
+      if(allSets.length===1){
+        singleZone[allSets[0]] = centers[allSets[0]].slice();
+      }
+      else if(allSets.length===2){
+        const [s1,s2]=allSets,
+              c1=centers[s1], c2=centers[s2],
+              dx=c1[0]-c2[0], dy=c1[1]-c2[1],
+              dist=Math.hypot(dx,dy)||1;
+        singleZone[s1]=[
+          c1[0] + dx/dist * zoneRsingle,
+          c1[1] + dy/dist * zoneRsingle
+        ];
+        singleZone[s2]=[
+          c2[0] - dx/dist * zoneRsingle,
+          c2[1] - dy/dist * zoneRsingle
+        ];
+      }
+      else if(allSets.length===3){
+        allSets.forEach(s=>{
+          const c=centers[s],
+                others=allSets.filter(x=>x!==s),
+                o1=centers[others[0]], o2=centers[others[1]],
+                ox=(o1[0]+o2[0])/2, oy=(o1[1]+o2[1])/2,
+                dx=c[0]-ox, dy=c[1]-oy,
+                dist=Math.hypot(dx,dy)||1;
+          singleZone[s]=[
+            c[0] + dx/dist * zoneRsingle,
+            c[1] + dy/dist * zoneRsingle
+          ];
+        });
+      }
+      // вычисляем центры зон пар
+      const pairZone={};
+      if(allSets.length===2){
+        const [s1,s2]=allSets,
+              c1=centers[s1], c2=centers[s2];
+        pairZone[[s1,s2].sort().join("|")] = [
+          (c1[0]+c2[0])/2,
+          (c1[1]+c2[1])/2
+        ];
+      }
+      else if(allSets.length===3){
+        [[0,1],[0,2],[1,2]].forEach(ix=>{
+          const s1=allSets[ix[0]], s2=allSets[ix[1]],
+                key=[s1,s2].sort().join("|"),
+                c1=centers[s1], c2=centers[s2],
+                other=allSets.find(x=>x!==s1&&x!==s2),
+                c3=centers[other],
+                mx=(c1[0]+c2[0])/2, my=(c1[1]+c2[1])/2,
+                dx=mx-c3[0], dy=my-c3[1],
+                dist=Math.hypot(dx,dy)||1;
+          pairZone[key]=[
+            mx + dx/dist * zoneRpair,
+            my + dy/dist * zoneRpair
+          ];
+        });
+      }
+      // собираем группы пар
+      const pairMap={};
+      ideas.forEach(v=>{
+        if(v.sets.length===2){
+          const k=v.sets.slice().sort().join("|");
+          (pairMap[k]||(pairMap[k]=[])).push(v);
+        }
+      });
+      function addPoint(x,y,item){
+        svg.append("circle")
+           .attr("class","idea-point")
+           .attr("cx",x).attr("cy",y).attr("r",pr)
+           .on("mouseover",e=>{
+             d3.select(e.currentTarget).attr("fill","#ba1e18");
+             tooltip.style("display","block")
+               .html(`<strong>${item.name}</strong><br>
+                      Множества: ${item.sets.join(", ")}<br>
+                      ${item.attrs.join("<br>")}`);
+           })
+           .on("mousemove",e=>{
+             tooltip.style("left",(e.pageX+10)+"px")
+                    .style("top",(e.pageY-10)+"px");
+           })
+           .on("mouseout",e=>{
+             d3.select(e.currentTarget).attr("fill","#333");
+             tooltip.style("display","none");
+           });
+      }
+      // одиночные
+      allSets.forEach(s=>{
+        const arr=Array.from(ideas.values())
+                       .filter(v=>v.sets.length===1&&v.sets[0]===s),
+              cz=singleZone[s],
+              pts=layoutCircle(cz,zoneRsingle,arr.length,pr);
+        arr.forEach((it,i)=>addPoint(pts[i][0],pts[i][1],it));
+      });
+      // пары
+      Object.entries(pairMap).forEach(([k,grp])=>{
+        const cz=pairZone[k],
+              pts=layoutCircle(cz,zoneRpair,grp.length,pr);
+        grp.forEach((it,i)=>addPoint(pts[i][0],pts[i][1],it));
+      });
+      // тройные
+      if(allSets.length===3){
+        const tri=Array.from(ideas.values()).filter(v=>v.sets.length===3),
+              cx=(centers[allSets[0]][0]
+                +centers[allSets[1]][0]
+                +centers[allSets[2]][0])/3,
+              cy=(centers[allSets[0]][1]
+                +centers[allSets[1]][1]
+                +centers[allSets[2]][1])/3,
+              pts=layoutCircle([cx,cy],zoneRtriple,tri.length,pr);
+        tri.forEach((it,i)=>addPoint(pts[i][0],pts[i][1],it));
+      }
+      // легенда
+      allSets.forEach(s=>{
+        const li=d3.select("#legend-items")
+                   .append("div").attr("class","legend-item")
+                   .style("border-left",`4px solid ${color(s)}`);
+        li.append("div").attr("class","legend-title").text(s);
+        Array.from(ideas.values())
+          .filter(v=>v.sets.includes(s))
+          .forEach(v=>li.append("div").text(v.name));
+      });
+    }
+    d3.csv("идеи.csv")
+      .then(data=>visualize(data))
+      .catch(e=>showError("Ошибка загрузки данных: "+e.message));
+  </script>
+</body>
+</html>
