@@ -5,8 +5,35 @@
   <title>Генеалогия: поколение = горизонталь, супруги рядом</title>
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <style>
-    body { background: #f5f8fb; font-family: 'Segoe UI', Arial, sans-serif; margin:0;}
-    .svg-container { width: 100vw; height: 850px; overflow: visible; position: relative;}
+    html, body {
+      height: 100%;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background: #f5f8fb;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      margin: 0;
+      height: 100vh;
+      width: 100vw;
+      min-height: 100vh;
+      min-width: 100vw;
+      display: flex;
+      flex-direction: column;
+      /* Элементы body будут растягиваться на всю высоту */
+    }
+    .svg-container {
+      width: 100vw;
+      height: 100%;
+      max-height: 100vh;
+      overflow: visible;
+      position: relative;
+      flex: 1 1 auto;   /* Растягиваем контейнер на всё оставшееся место */
+      display: flex;
+      flex-direction: column;
+    }
     .zoom-controls { position: absolute; top: 20px; left: 40px; z-index: 2; user-select: none;}
     .zoom-btn { display: inline-block; width: 34px; height: 34px; border: none; background: #e2e6f1; color: #263855; font-weight: bold; font-size: 22px; border-radius: 7px; margin-right:6px; cursor: pointer; vertical-align: middle; outline: none; transition: background .12s;}
     .zoom-btn:active { background: #91b7dc; color: #234;}
@@ -38,7 +65,7 @@
       <button class="zoom-btn" id="zoom-in">+</button>
       <span class="zoom-scale-label" id="zoom-label">100%</span>
     </div>
-    <svg id="tree-svg" width="2200" height="800"></svg>
+    <svg id="tree-svg"></svg>
   </div>
 <script>
 Promise.all([
@@ -247,8 +274,12 @@ function initGenealogy([peopleRaw, linksRaw]) {
   // --- 9. d3 отрисовка ---
   const svg = d3.select("svg");
   svg.selectAll("*").remove();
-  svg.attr("width", Math.max(1400, maxX-minX+200));
-  svg.attr("height", Math.max(650,maxY-minY+180));
+  // SVG всегда покрывает контейнер
+  const containerDOM = document.getElementById('svg-container');
+  const widthSVG = containerDOM.clientWidth;
+  const heightSVG = containerDOM.clientHeight;
+  svg.attr("width", widthSVG);
+  svg.attr("height", heightSVG);
   let rootg=svg.append("g");
   rootg.selectAll("path.link")
     .data(links)
@@ -361,16 +392,25 @@ function setupTooltip(people, body, personNodes, marriageNodes) {
     .on("mouseleave", function() { tooltip.transition().duration(100).style("opacity", 0); });
 }
 function setupZoom(svg, rootg, bbox) {
+  // Свежо вычисляем размеры именно clientWidth/clientHeight — контейнер покрывает всё пространство.
   const container = document.getElementById('svg-container');
-  const contWidth = container.clientWidth-20, contHeight = container.clientHeight-16;
+  // Берём реальные размеры контейнера — он теперь flex и всегда на весь экран (минус хэдэр, если появится).
+  const contRect = container.getBoundingClientRect();
+  const contWidth = contRect.width;
+  const contHeight = contRect.height;
   const margin = 33;
   let scaleX = contWidth/(bbox.width + 2*margin), scaleY = contHeight/(bbox.height + 2*margin);
   let scaleInit = Math.min(scaleX, scaleY, 1);
   if(!isFinite(scaleInit) || scaleInit <= 0) scaleInit = 1;
+  // Центрируем так, чтобы центр графа совпал с центром SVG-контейнера
+  const centerDataX = bbox.minX + bbox.width/2;
+  const centerDataY = bbox.minY + bbox.height/2;
+  const centerScreenX = contWidth/2/scaleInit;
+  const centerScreenY = contHeight/2/scaleInit;
   let transform = d3.zoomIdentity
     .translate(
-      margin + (contWidth/scaleInit - bbox.width)/2 - bbox.minX,
-      margin + (contHeight/scaleInit - bbox.height)/2 - bbox.minY
+      (centerScreenX - centerDataX)*scaleInit,
+      (centerScreenY - centerDataY)*scaleInit
     )
     .scale(scaleInit);
   const zoom = d3.zoom()
