@@ -1,0 +1,32 @@
+"source","target","type"
+"rostov_ilya","rostov_vera","parent"
+"rostova_natasha","rostov_vera","parent"
+"rostov_ilya","rostov_nikolai","parent"
+"rostova_natasha","rostov_nikolai","parent"
+"rostov_ilya","rostov_natasha","parent"
+"rostova_natasha","rostov_natasha","parent"
+"rostov_ilya","rostov_petya","parent"
+"rostova_natasha","rostov_petya","parent"
+"bolkonsky_nikolai","bolkonsky_andrei","parent"
+"bolkonsky_nikolai","bolkonskaya_marya","parent"
+"bolkonsky_andrei","bolkonskaya_liza","married"    
+"bolkonsky_andrei","bolkonsky_nikolai_son","parent"
+"bolkonskaya_liza","bolkonsky_nikolai_son","parent"
+"rostov_nikolai","bolkonsky_michael","parent"
+"bolkonskaya_marya","bolkonsky_michael","parent"
+"bezukhov_kirill","bezukhov_pierre","parent"
+"bezukhov_pierre","bezukhov_natacha","parent"
+"rostov_natasha","bezukhov_natacha","parent"
+"bezukhov_pierre","bezukhov_marie","parent"
+"rostov_natasha","bezukhov_marie","parent"
+"bezukhov_pierre","bezukhov_peter","parent"
+"rostov_natasha","bezukhov_peter","parent"
+"kuragin_vasili","kuragin_helene","parent"
+"kuragin_vasili","kuragin_anatole","parent"
+"kuragin_vasili","kuragin_ipolit","parent"
+"drubetskaya_anna","drubetskoy_boris","parent"
+"drubetskoy_boris","karagina_julie","married"     # Жюли и Борис
+"bezukhov_pierre","kuragina_helene","married"     # Первая жена Пьера — Элен
+"bezukhov_pierre","rostov_natasha","married"      # Вторая жена Пьера — Наташа Ростова
+"bolkonsky_andrei","bolkonskaya_liza","married"   # Андрей и Лиза Болконская
+"rostov_nikolai","bolkonskaya_marya","married"    # Николай Ростов и Марья Болконская

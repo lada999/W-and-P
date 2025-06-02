@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Динамическое семейное облако</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body { font-family: sans-serif; }
+        .bubble { opacity: 0.18; }
+        .bubble-label { font: bold 18px sans-serif; fill: #222; pointer-events: none;}
+        .block-rect { stroke: #234; stroke-width:1.1px;}
+        .block-label { font: 15px sans-serif; pointer-events: none;}
+        .block-personal { stroke: #777; stroke-width:1.1px; }
+        .link.parent { stroke: #3459e6; stroke-width: 2px;}
+        .link.child  { stroke: #1cc932; stroke-width: 2px; }
+        .link.spouse { stroke: #e21c3d; stroke-width: 2.4px; stroke-dasharray: 8,7;}
+        marker.arrow { fill: #3459e6; }
+        .marriage-icon { font-size: 18px; pointer-events: none;}
+    </style>
+</head>
+<body>
+<svg id="graph" width="2000" height="1200"></svg>
+<div id="error" style="color:red"></div>
+<script>
+const familyColors = d3.schemeSet2.concat(d3.schemeSet1);
+const personalColor = "#bbb";
+const BOX_PADDING = 10, LINE_HEIGHT = 18, MIN_WIDTH = 90, MIN_HEIGHT = 32;
+
+// ===========================
+// Загрузка данных
+// ===========================
+fetch('семья.csv')
+  .then(r => {if(!r.ok) throw new Error('Ошибка загрузки'); return r.text();})
+  .then(text => drawFamilyTree(csvParse(text)))
+  .catch(e => document.getElementById('error').textContent='Ошибка: '+e.message);
+
+function csvParse(text) {
+    const rows = text.trim().split(/\r?\n/);
+    return rows.slice(1).map(row=>{
+        let r = [], s = '', q = false;
+        for(let i=0;i<row.length;i++){
+            if(row[i]==='"') {q=!q;} else
+            if(row[i]===','&& !q) {r.push(s);s='';} else { s+=row[i];}
+        }
+        r.push(s);
+        while(r.length<7) r.push('');
+        let val = x=>x===undefined ? '' : x.replace(/^"|"$/g,'');
+        return {
+            id: val(r[0]), name: val(r[1]), family: val(r[2]),
+            father_id: val(r[3]), mother_id: val(r[4]),
+            spouse_ids: val(r[5]).split(';').filter(Boolean),
+            children_ids: val(r[6]).split(';').filter(Boolean)
+        }
+    });
+}
+
+// ===========================
+// Проекция для текста
+// ===========================
+function getTextLines(txt, maxWidth, context) {
+    if(!context) {
+        let canvas = document.createElement("canvas");
+        context = canvas.getContext("2d");
+        context.font = "15px sans-serif";
+    }
+    let words = txt.split(/\s+/), lines = [], line = "";
+    words.forEach(word => {
+        let test = line ? line+" "+word : word;
+        if(context.measureText(test).width > maxWidth && line)
+            {lines.push(line); line = word;}
+        else line = test;
+    });
+    if(line) lines.push(line);
+    return lines;
+}
+function measureBlock(name) {
+    let canvas = document.createElement("canvas");
+    let ctx = canvas.getContext("2d");
+    ctx.font = "15px sans-serif";
+    for(let w=MIN_WIDTH; w<=220; w+=12){
+        let lines = getTextLines(name, w, ctx);
+        let mx = Math.max(...lines.map(l=>ctx.measureText(l).width));
+        let height = lines.length*LINE_HEIGHT + BOX_PADDING*2;
+        if (mx <= w && lines.length<=3)
+            return {width: Math.ceil(Math.max(w,mx+BOX_PADDING*2)), height: height, lines: lines};
+    }
+    let lines = getTextLines(name, 220, ctx);
+    return {width: 220, height: lines.length*LINE_HEIGHT+BOX_PADDING*2, lines};
+}
+
+// ===========================
+// Главная функция отрисовки
+// ===========================
+function drawFamilyTree(data) {
+    const svg = d3.select("#graph");
+    svg.selectAll("*").remove();
+    const width = +svg.attr("width"), height = +svg.attr("height");
+
+    // 1. Входные данные -> группы: family, одиночки
+    let familyMap = {}, families = [], individuals = [];
+    data.forEach(d => {
+        if(d.family) {
+            familyMap[d.family] = familyMap[d.family] || [];
+            familyMap[d.family].push(d);
+        } else individuals.push(d);
+    });
+
+    // Цвета для семей
+    const famNames = Object.keys(familyMap);
+    const famColorMap = {};
+    famNames.forEach((fam, i) => famColorMap[fam]=familyColors[i%familyColors.length]);
+
+    // 2. Создаём массив бабблов (пузыри семей)
+    families = famNames.map((fam, i) => {
+        let members = familyMap[fam];
+        let radius = Math.max(
+            90 + members.length*28,
+            150,
+            ...members.map(d=>Math.sqrt(measureBlock(d.name).width**2 + measureBlock(d.name).height**2)/2+21)
+        );
+        return {
+            type: "familyBubble",
+            family: fam,
+            color: famColorMap[fam],
+            members: members,
+            x: width/3+Math.random()*width/3,
+            y: height/3+Math.random()*height/3,
+            vx: 0, vy: 0,
+            radius: radius,
+            id: "__BUBBLE__"+i
+        }
+    });
+
+    // 3. Блоки — все персонажи (включая одиночек!)
+    const allNodes = [];
+
+    // Семейные
+    families.forEach((fam,i) => {
+        fam.members.forEach(d => {
+            const m = measureBlock(d.name);
+            Object.assign(d, {
+                boxWidth: Math.max(m.width, MIN_WIDTH),
+                boxHeight: Math.max(m.height, MIN_HEIGHT),
+                textLines: m.lines,
+                color: fam.color,
+                type: "person",
+                family: fam.family,
+                parentBubble: fam,
+                vx: 0, vy: 0,
+            });
+            allNodes.push(d);
+        });
+    });
+    // Одиночки
+    individuals.forEach((d,i)=>{
+        const m = measureBlock(d.name);
+        Object.assign(d, {
+            boxWidth: Math.max(m.width, MIN_WIDTH),
+            boxHeight: Math.max(m.height, MIN_HEIGHT),
+            textLines: m.lines,
+            type: "person",
+            is_personal: true,
+            color: personalColor,
+            x: Math.random()*width, y: Math.random()*height, vx: 0, vy: 0
+        });
+        allNodes.push(d);
+    });
+
+    // 4. Для одиночек — делаем одну-«bubble» для симуляции (будет отталкиваться)
+    let singlesBubbleNodes = individuals.map((d,i) => ({
+        type: "singleBlock",
+        id: "__SINGLE__"+i,
+        x: d.x, y: d.y,
+        radius: Math.max(d.boxWidth,d.boxHeight)*0.75+19,
+        color: personalColor,
+        vx: 0, vy: 0,
+        ref: d // обратная ссылка на объект персонажа
+    }));
+
+    // 5. Связи (только внутри семьи)
+    const nodesById = Object.fromEntries(allNodes.map(d=>[d.id, d]));
+    let links = [];
+    for(const fam of families){
+        let famNodes = fam.members;
+        let idMap = Object.fromEntries(famNodes.map(d=>[d.id, d]));
+        for(const d of famNodes) {
+            if(d.father_id && idMap[d.father_id])
+                links.push({source: d.father_id, target: d.id, type:'parent'});
+            if(d.mother_id && idMap[d.mother_id])
+                links.push({source: d.mother_id, target: d.id, type:'parent'});
+            for(const sid of d.spouse_ids) if(sid && idMap[sid])
+                // Один раз (не две связи)
+                if(d.id < sid)
+                    links.push({source:d.id, target:sid, type:'spouse'});
+        }
+    }
+    // Одиночек не соединяем.
+
+    // 6. Все "узлы" для глобальной симуляции:
+    // - bubbles семей
+    // - одиночные "пузырьки"
+    // (блоки внутри бабблов перемещаем отдельно!)
+
+    let metaNodes = families.map(fam => fam)
+        .concat(singlesBubbleNodes); // бабблы + одиночки
+
+    // 7. Глобальная физика для metaNodes (пузыри-семей и одиночные блоки!)
+    let bubbleRadius = d => d.type == "familyBubble" ? d.radius : d.radius;
+    let simBubbles = d3.forceSimulation(metaNodes)
+        .force("center", d3.forceCenter(width/2, height/2))
+        .force("collide", d3.forceCollide().radius(d=>
+            d.type == "familyBubble" ? d.radius+28 : d.radius+32).strength(1.13)
+        )
+        .force("border", alpha => {
+            // Давим к центру, если вышли за границы
+            metaNodes.forEach(node => {
+                let r = bubbleRadius(node)+12, k=alpha*0.7;
+                if(node.x < r) node.vx += (r-node.x)*k;
+                else if(node.x > width-r) node.vx += (width-r-node.x)*k;
+                if(node.y < r) node.vy += (r-node.y)*k;
+                else if(node.y > height-r) node.vy += (height-r-node.y)*k;
+            });
+        })
+        .velocityDecay(0.3)
+        .alphaDecay(0.01);
+
+    // 8. Внутрисемейная симуляция: двигать блоки по бабблу, forceCollide друг от друга и от края баббла
+    let simByFamily = {};
+    families.forEach(fam => {
+        // По углу разбрасываем для старта
+        let angle0 = 2*Math.PI*Math.random(), delta = 2*Math.PI/fam.members.length;
+        fam.members.forEach((person,idx)=>{
+            let r = fam.radius-35;
+            let a = angle0 + idx*delta;
+            person.x = fam.x + r*Math.cos(a);
+            person.y = fam.y + r*Math.sin(a);
+        });
+
+        // Симуляция по местным: нельзя выходить за пределы fam.radius
+        let sim = d3.forceSimulation(fam.members)
+            .force("cx", () => {
+                fam.members.forEach(d => {
+                    let dx = d.x-fam.x, dy = d.y-fam.y, rr = Math.sqrt(dx*dx+dy*dy);
+                    let maxR = fam.radius-Math.max(d.boxWidth,d.boxHeight)/2-13;
+                    if(rr > maxR){
+                        let k = (maxR-rr)/rr*0.35;
+                        d.x += dx*k;
+                        d.y += dy*k;
+                    }
+                });
+            })
+            .force("collide", d3.forceCollide().radius(d=>Math.max(d.boxWidth,d.boxHeight)/2+13).strength(1))
+            .force("charge", d3.forceManyBody().strength(-35))
+            .stop();
+
+        simByFamily[fam.family] = sim;
+    });
+
+    // 9. Отрисовка
+    // ---- стрелка+spouse marker defs
+    svg.append('defs').html(`
+      <marker id="arrowhead" viewBox="0 -6 11 12" refX="10.8" refY="0" 
+          markerWidth="8.7" markerHeight="7.7" orient="auto" class="arrow">
+        <path d="M0,-6 L11,0 L0,6" fill="#3459e6" />
+      </marker>
+    `);
+
+    // --- Бабблы семей
+    const famGroup = svg.selectAll('.bubbleGroup')
+      .data(families, d=>d.family)
+      .join('g')
+      .attr('class','bubbleGroup')
+      .attr('cursor','move');
+
+    famGroup.append('circle')
+      .attr('class','bubble')
+      .attr('r',d=>d.radius)
+      .attr('stroke',d=>d.color)
+      .attr('stroke-width',6)
+      .attr('fill',d=>d.color);
+
+    famGroup.append('text')
+      .attr('class','bubble-label')
+      .attr('y',d=>-d.radius + 36 )
+      .attr('text-anchor','middle')
+      .text(d=>d.family);
+
+    // --- Индивидуальные одиночки
+    const singlesGroup = svg.append('g')
+      .selectAll('.nodepersonal')
+      .data(singlesBubbleNodes)
+      .join('g')
+      .attr('class','node nodepersonal')
+      .attr('cursor','move');
+
+    singlesGroup.append('circle')
+      .attr("r",d=>d.radius)
+      .attr('fill',d=>d.color)
+      .attr('class','block-personal')
+      .attr("stroke-width",2);
+
+    singlesGroup.append('text')
+      .attr('class','block-label')
+      .attr('text-anchor','middle')
+      .attr('y',5)
+      .text(d=>d.ref.name);
+
+    // --- Персонажи внутри бабблов
+    const nodeGroup = svg.append('g')
+        .selectAll('.nodefamily')
+        .data(allNodes.filter(d=>!d.is_personal))
+        .join('g')
+        .attr('class','node nodefamily');
+
+    nodeGroup.append("rect")
+        .attr("class","block-rect")
+        .attr("rx",12).attr("ry",12)
+        .attr("x",d=>-d.boxWidth/2)
+        .attr("y",d=>-d.boxHeight/2)
+        .attr("width",d=>d.boxWidth)
+        .attr("height",d=>d.boxHeight)
+        .attr('fill',d=>d.color);
+
+    nodeGroup.each(function(d){
+        let g = d3.select(this);
+        let text = g.append('text')
+            .attr('class','block-label')
+            .attr('text-anchor','middle')
+            .attr('y',6-((d.textLines.length-1)*LINE_HEIGHT/2));
+        d.textLines.forEach((t,i)=> text.append('tspan').attr('x',0).attr('dy',i?LINE_HEIGHT:0).text(t));
+    });
+
+    // --- Связи
+    const linkGroup = svg.append("g").attr("pointer-events","none");
+    // для spouse — рисуем иконку
+    function marriageIcon(x1,y1,x2,y2){
+        let xm = (x1+x2)/2, ym = (y1+y2)/2;
+        return `<text x="${xm}" y="${ym}" class="marriage-icon" text-anchor="middle" dominant-baseline="central">&#128141;</text>`;
+    }
+
+    // --- Местоположение элементов
+    function updatePositions() {
+        // Семейные круги
+        famGroup.attr('transform', d=>`translate(${d.x},${d.y})`);
+        // Одиночки
+        singlesGroup
+            .attr('transform', d=>`translate(${d.x},${d.y})`);
+        // Блоки в семейных
+        nodeGroup
+           .attr('transform', d=>`translate(${d.x},${d.y})`);
+        // Линии
+        linkGroup.html(""); // clear
+        // Рисуем связи
+        for(const l of links){
+            let src = nodesById[l.source], tgt = nodesById[l.target];
+            if(!src||!tgt) continue;
+            let x1=src.x, y1=src.y, x2=tgt.x, y2=tgt.y;
+            if(l.type==="parent")
+                linkGroup.append("line")
+                  .attr("x1",x1).attr("y1",y1)
+                  .attr("x2",x2).attr("y2",y2)
+                  .attr("class","link parent")
+                  .attr("marker-end","url(#arrowhead)");
+            else if(l.type==="spouse"){
+                linkGroup.append("line")
+                  .attr("x1",x1).attr("y1",y1)
+                  .attr("x2",x2).attr("y2",y2)
+                  .attr("class","link spouse");
+                // значок кольца (средняя точка)
+                linkGroup.node().insertAdjacentHTML("beforeend",marriageIcon(x1,y1,x2,y2));
+            } else {
+                linkGroup.append("line")
+                  .attr("x1",x1).attr("y1",y1)
+                  .attr("x2",x2).attr("y2",y2)
+                  .attr("class","link child");
+            }
+        }
+    }
+
+    // =========== Drag and physics ================
+    famGroup.call(d3.drag()
+        .on('start', function(event,d){
+            d.fx = d.x;
+            d.fy = d.y;
+            simBubbles.alpha(0.3).restart();
+        })
+        .on('drag', function(event,d){
+            d.fx = event.x;
+            d.fy = event.y;
+        })
+        .on('end', function(event,d){
+            d.fx = null; d.fy = null;
+            simBubbles.alpha(0.1);
+        }));
+
+    singlesGroup.call(d3.drag()
+        .on('start', function(event,d){
+            d.fx = d.x;
+            d.fy = d.y;
+            simBubbles.alpha(0.28).restart();
+        })
+        .on('drag', function(event,d){
+            d.fx = event.x; d.fy = event.y;
+        })
+        .on('end', function(event,d){
+            d.fx = null; d.fy = null;
+            simBubbles.alpha(0.08);
+        }));
+
+    // ============== АНИМАЦИЯ ==============
+    d3.timer(function(){
+        // "Пузырьки" (metaNodes) — d3-force уже заботится
+
+        // Семейные блоки двигаем симуляцией
+        for(const fam of families){
+            // Центр баббла всегда у metaNode
+            let centerX = fam.x, centerY = fam.y;
+            // На каждом тик, подправляем их симуляцию,
+            // приближая центр блока к новому положению пузыря
+            simByFamily[fam.family]
+                .force("center", d3.forceCenter(centerX, centerY))
+                .restart();
+            for(let tick=0;tick<2;++tick) simByFamily[fam.family].tick();
+        }
+
+        updatePositions();
+    });
+}
+</script>
+</body>
+</html>

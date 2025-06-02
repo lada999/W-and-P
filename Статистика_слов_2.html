@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Коллаж из 400 слов</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3-cloud/build/d3.layout.cloud.js"></script>
+  <style>
+    body { font-family: sans-serif; margin: 40px; }
+    svg { border: 1px solid #ccc; margin-top: 20px;}
+  </style>
+</head>
+<body>
+  <h2>Коллаж из самых частовстречающихся слов</h2>
+  <label>
+    <input type="checkbox" id="prepFilter" checked>
+    Фильтровать предлоги
+  </label>
+  <div id="wordcloud" style="width: 2000px; height: 2000px; overflow: auto; border: 1px solid #ccc;"></div>
+  <script>
+    // Список часто встречающихся русских предлогов
+    const PREPOSITIONS = [
+     'ах', 'ой', 'эх', 'увы', 'ага', 'ну', 'ура', 'фи', 'тьфу', 'ало', 'алло', 'ба', 'браво', 'да', 'нет', 'увы', 'эй', 'ой-ой', 'о', 'ой-ёй', 'эхе-хе', 'чур', 'гы', 'ай', 'эй', 'я',
+     'в', 'во', 'на', 'за', 'из', 'из-за', 'к', 'ко', 'от', 'до', 'по', 'о', 'об', 'обо', 'про', 'для', 'без', 'через', 'с', 'со', 'при', 'под', 'подо', 'над', 'перед', 'передо', 'между', 'у', 'около', 'возле', 'вокруг', 'мимо', 'ради', 'путём', 'благодаря', 'ввиду', 'согласно', 'вследствие', 'несмотря на', 'сверх', 'посредством', 'наподобие', 'вроде', 'наперед', 'после', 'против', 'из-под', 'вдоль', 'вслед', 'навстречу', 'насчет', 'по поводу',
+     'и', 'а', 'но', 'да', 'или', 'либо', 'или же', 'то',  'этого', 'р', 'тоже', 'также', 'зато', 'однако', 'чтоб', 'чтобы', 'что', 'как', 'когда', 'где', 'ли', 'если', 'раз', 'будто', 'пока', 'хотя', 'потому что', 'так как', 'чем', 'лишь', 'дабы', 'пусть', 'пускай', 'словно', 'точно', 'где', 'куда', 'оттого', 'после того как', 'прежде чем', 'зачем', 'так', 'это', 'только', 'ибо', 'разве что',
+     'бы', 'же', 'ли', 'либо', 'лишь', 'уж', 'ведь', 'так', 'же', 'ведь', 'разве', 'уж', 'только', 'даже', 'ни', 'не', 'ну', 'пусть', 'пускай', 'вот', 'вон', 'всё-таки', 'давай', 'давай-ка', 'ка', 'кабы', 'быть может', 'авось', 'точно', 'прямо', 'едва ли', 'вряд ли', 'почти', 'выходит', 'так сказать', 'именно', 'как раз', 'едва', 'себе', 'чуть', 'ему', 'того', 'него', 'еще', 'был', 'была', 'было', 'были', 
+     'я', 'ты', 'он', 'она', 'оно', 'мы', 'вы', 'они', 'мой', 'твой', 'свой', 'его', 'ее', 'их', 'наш', 'ваш', 'кто', 'что', 'какой', 'чей', 'который', 'такой', 'этот', 'тот', 'столько', 'себя', 'никто', 'ничто', 'никакой', 'ничей', 'нечей', 'никоторый', 'нечто', 'некий', 'всё', 'всякий', 'любой', 'сам', 'самый', 'другой', 'иной', 'каждый', 'любой', 'несколько', 'некоторый', 'кто-то', 'что-то', 'какой-то',
+     'ей', 'чей-то', 'кто-нибудь', 'что-нибудь', 'какой-нибудь', 'чей-нибудь', 'кто-либо', 'что-либо', 'какой-либо', 'все', 'чей-либо'
+    ];
+
+    function isCyrillic(word) {
+      return /^[\u0400-\u04FF]+$/i.test(word);
+    }
+
+    function WordCloud1(data, {
+      marginTop = 0,
+      marginRight = 0,
+      marginBottom = 0,
+      marginLeft = 0,
+      width = 1200,
+      height = 900,
+      fontFamily = "sans-serif",
+      padding = 2,
+      rotate = () => (Math.random() > 0.5 ? 0 : 90)
+    } = {}) {
+      d3.select("#wordcloud").selectAll("svg").remove();
+
+      // Для пропорционального размера берём только 381 слово (без первых 19 + 1)
+      const rest = data.slice(20);
+      const restCounts = rest.map(d => d.count);
+
+      // Для первых 20 - берем их counts
+      const first20Counts = data.slice(0, 20).map(d => d.count);
+
+      // Общий масштаб для всех (но первые 20 ещё раз увеличим позже)
+      const commonScale = d3.scaleLinear()
+        .domain([Math.min(...data.map(d => d.count)), Math.max(...data.map(d => d.count))])
+        .range([18, 70]); // Остальные слова (от 18 до 70 px)
+
+      // Формируем массив слов с масштабом
+      const dataWithSize = data.map((d, i) => ({
+        text: d.word,
+        size: i < 20 ? Math.max(70, commonScale(d.count) * 3) : commonScale(d.count), // Первые 20 - в 3 раза больше
+        idx: i
+      }));
+
+      const svg = d3.create("svg")
+        .attr("width", width)
+        .attr("height", height)
+        .attr("font-family", fontFamily)
+        .attr("text-anchor", "middle")
+        .attr("style", "max-width: 100%; height: auto; height: intrinsic;");
+
+      const g = svg.append("g")
+        .attr("transform", `translate(${width/2},${height/2})`);
+
+      d3.layout.cloud()
+        .size([width - marginLeft - marginRight, height - marginTop - marginBottom])
+        .words(dataWithSize)
+        .padding(padding)
+        .rotate(rotate)
+        .font(fontFamily)
+        .fontSize(d => d.size)
+        .on("end", words => {
+          g.selectAll("text")
+            .data(words)
+            .enter().append("text")
+            .attr("font-size", d => d.size)
+            .attr("fill", (d, i) => d3.schemeCategory10[i % 10])
+            .attr("transform", d => `translate(${d.x},${d.y}) rotate(${d.rotate})`)
+            .text(d => d.text);
+          document.getElementById("wordcloud").appendChild(svg.node());
+        })
+        .start();
+    }
+
+    // Данные исходного файла
+    let originalData = [];
+
+    // Основная функция фильтрации и вывода
+    function renderWordCloud({filterPrepositions = true} = {}) {
+      const excludeList = ['стр', 'страница', 'изд', 'г', 'ч', 'глава', 'строка'];
+      const uniqueMap = new Map();
+      for (const d of originalData) {
+        const w = d.word.toLowerCase();
+
+        if (
+          isCyrillic(d.word) &&
+          !excludeList.includes(w) &&
+          (!filterPrepositions || !PREPOSITIONS.includes(w)) &&
+          !uniqueMap.has(w)
+        ) {
+          uniqueMap.set(w, d.count);
+        }
+      }
+      const filteredArr = Array.from(uniqueMap, ([word, count]) => ({word, count}));
+      filteredArr.sort((a, b) => b.count - a.count);
+      const top400 = filteredArr.slice(0, 400);
+
+      if (top400.length < 400) {
+        document.getElementById("wordcloud").innerText = "В файле недостаточно подходящих слов для коллажа из 400 уникальных.";
+        return;
+      }
+      WordCloud1(top400);
+    }
+
+    fetch('word_statistics.csv')
+      .then(response => {
+        if (!response.ok) throw new Error('Не удалось загрузить word_statistics.csv');
+        return response.text();
+      })
+      .then(text => {
+        const data = d3.csvParse(text, d => ({
+          word: (d.word || '').trim(),
+          count: +d.count
+        }));
+        originalData = data;
+        renderWordCloud({filterPrepositions: document.getElementById('prepFilter').checked});
+      })
+      .catch(err => {
+        document.getElementById("wordcloud").innerText = "Ошибка: " + err.message;
+      });
+
+    document.getElementById('prepFilter').addEventListener('change', function() {
+      renderWordCloud({filterPrepositions: this.checked});
+    });
+  </script>
+</body>
+</html>

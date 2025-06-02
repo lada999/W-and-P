@@ -146,6 +146,17 @@
         
         <!-- Слайд 1: Титульный -->
         <div class="slide active" id="slide1">
+            <h1 class="slide-title"> О проекте</h1>
+            <div class="slide-content">
+                Инфографика по роману Льва Толстого<br>
+                Анализ ключевых аспектов произведения
+                <iframe class="slide-iframe" src="./презентация.html"></iframe>
+            </div>
+            <div class="slide-number">1 / 6</div>
+        </div>
+        
+        <!-- Слайд 1: схема -->
+        <div class="slide active" id="slide1">
             <h1 class="slide-title">Война и Мир</h1>
             <div class="slide-content">
                 Инфографика по роману Льва Толстого<br>
@@ -185,7 +196,17 @@
             <div class="slide-number">5 / 6</div>
         </div>
         
-        <!-- Слайд 6: География -->
+         <!-- Слайд 6: Статистика -->
+        <div class="slide" id="slide5">
+            <h1 class="slide-title">Цифры и факты</h1>
+            <div class="slide-content">
+                <iframe class="slide-iframe" src="./Статистика_слов_2.html"></iframe>
+                Количество страниц, персонажей, лет написания
+            </div>
+            <div class="slide-number">5 / 6</div>
+        </div>
+        
+        <!-- Слайд 7: География -->
         <div class="slide" id="slide6">
             <h1 class="slide-title">Карта перемещений</h1>
             <div class="slide-content">
@@ -259,5 +280,7 @@
             prevBtn.style.display = 'none';
         });
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+<script>eruda.init();</script>
 </body>
 </html>

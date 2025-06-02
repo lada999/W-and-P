@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Круг презентаций (капли)</title>
+  <style>
+    html, body {
+      min-height: 100vh;
+    }
+    body {
+      background: #e8f0fe;
+      font-family: Arial, sans-serif;
+      overflow: auto;
+    }
+    #upload-area {
+      margin: 20px auto 20px auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    #container {
+      position: relative;
+      width: 880px;
+      height: 700px;
+      margin: 40px auto 120px auto; /* для прокрутки */
+      min-width: 320px;
+      min-height: 300px;
+    }
+    #circle {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      left: 0; top: 0;
+      pointer-events: none; /* Не дает перехватить клики */
+    }
+    /* Центральное окно */
+    #text-area {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 335px;
+      height: 335px;
+      min-width: 170px;
+      min-height: 170px;
+      border-radius: 50%;
+      border: 7px solid #bcdff4;
+      background: #f8fcff;
+      box-shadow: 0 0 40px #9ecbff55, 0 8px 20px #b0d4f688;
+      font-size: 20px;
+      padding: 45px 30px 30px 30px;
+      box-sizing: border-box;
+      text-align: center;
+      transform: translate(-50%, -50%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: auto;
+      transition: border-color 0.2s, background 0.2s;
+      z-index: 2;
+      word-break: break-word;
+      overflow: auto;
+      line-height: 1.3;
+    }
+
+
+    /* Капля-кнопка */
+    .drop-btn {
+      position: absolute;
+      width: 154px;
+      height: 82px;
+      border: none;
+      color: #fff;
+      font-weight: bold;
+      font-size: 15px;
+      cursor: pointer;
+      text-align: center;
+      box-shadow: 0 2px 18px #0003;
+      outline: none;
+      z-index: 1;
+      /* Делает форму капли: овал + треугольник (через clip-path) */
+      clip-path: path('M77 0 Q105 20 125 61 Q140 100 77 82 Q10 100 26 61 Q47 20 77 0Z');
+      transition: filter 0.12s, transform 0.13s, z-index 0.1s;
+      user-select: none;
+      will-change: transform;
+      pointer-events: auto;
+      padding: 0 4px;
+      background: #2196f3; /* placeholder, будет перезаписано */
+      border-radius: 36% 36% 70% 70%/36% 36% 74% 74%;
+    }
+    /* Наведение: подсветка и выше */
+    .drop-btn:hover {
+      filter: brightness(1.11) drop-shadow(0 0 10px #fff7);
+      z-index: 9;
+      transform: scale(1.09);
+    }
+
+    @media (max-width: 900px) {
+      #container { width: 99vw; }
+      #text-area {
+        width: 53vw;
+        height: 53vw;
+        min-width: 170px; min-height: 170px; max-width: 335px; max-height: 335px;
+        font-size: min(5vw, 20px);
+        padding: min(7vw,45px) min(4vw,30px);
+      }
+    }
+    @media (max-width: 600px) {
+      #container {
+        height: 95vw;
+        min-width: 240px;
+      }
+      #text-area {
+        width: 37vw !important;
+        height: 37vw !important;
+        min-width: 120px; min-height: 120px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div id="upload-area">
+  <label>
+    Загрузите другой CSV файл (название, текст):
+    <input type="file" id="csvFile" accept=".csv">
+  </label>
+</div>
+
+<div id="container">
+  <div id="circle"></div>
+  <div id="text-area"></div>
+</div>
+
+<script>
+  // Палитра для кнопок
+  const COLORS = [
+    "#0e7dc4", "#24bfae", "#2db243", "#8eb620",
+    "#fbbc04", "#ff7047", "#ef2960", "#a964e1",
+    "#435ee3", "#1976d2", "#6ec1e4","#fb696c"
+  ];
+
+  const circleDiv = document.getElementById('circle');
+  const textArea = document.getElementById('text-area');
+  const fileInput = document.getElementById('csvFile');
+  let dropButtons = [];
+
+  function parseCSV(str) {
+    const lines = str.split('\n').filter(l => l.trim());
+    return lines.map(line => {
+        let m = line.match(/^"([^"]+)"\s*,\s*"([\s\S]*)"$/);
+        if (m) return [m[1], m[2].replace(/"\s*$/, '')];
+        let idx = line.indexOf(',');
+        if (idx === -1) return null;
+        const key = line.slice(0, idx).replace(/^"|"$/g, '').trim();
+        const value = line.slice(idx+1).replace(/^"|"$/g, '').trim();
+        return [key, value];
+    }).filter(Boolean);
+  }
+
+  function clearCircle() {
+    circleDiv.innerHTML = '';
+    dropButtons = [];
+  }
+
+  function renderCircle(items) {
+    clearCircle();
+    if (!items.length) return;
+    // Радиусы
+    const bigR = 340; // расстояние до ЦЕНТРА кнопки от центра круга
+    const cx = 440, cy = 350;
+    const N = items.length;
+    const angleStep = 2 * Math.PI / N;
+    const textSizes = [];
+    let i, btn;
+
+    for (i=0; i<N; ++i) {
+      const [title, text] = items[i];
+      // Вычисляем угол: -pi/2 = верх, далее по часовой
+      const angle = i * angleStep - Math.PI/2;
+      // Сместь центр кнопки на большом радиусе по направлению угла
+      const C = 340, c = 82/2 - 1; // капля: не попадает в круг, c=41
+      // Пусть центр КАПЛИ касается окружности центрального круга радиусом 167
+      // Смещаем центр капли на bigR+... чтобы края не заходили
+      const x = cx + bigR * Math.cos(angle) - 77; // 77=154/2, по ширине
+      const y = cy + bigR * Math.sin(angle) - 41; // 41=82/2, по высоте
+
+      btn = document.createElement('button');
+      btn.className = 'drop-btn';
+      // Цвет по индексу
+      btn.style.background = COLORS[i % COLORS.length];
+      btn.textContent = title;
+
+      // Повернуть "носик" капли в центр
+      btn.style.transform = `rotate(${angle + Math.PI/2}rad)`;
+
+      // Позиционируем
+      btn.style.left = `${x}px`;
+      btn.style.top = `${y}px`;
+
+      // При нажатии — показываем текст
+      btn.addEventListener('click', () => {
+        setTextCentered(text, btn.style.background);
+        slicePop(btn); // анимация
+      });
+
+      circleDiv.appendChild(btn);
+      dropButtons.push(btn);
+    }
+    // Первая кнопка сразу активна
+    setTextCentered(items[0][1] || "", dropButtons[0].style.background);
+  }
+
+  function setTextCentered(text, color) {
+    textArea.textContent = text;
+    // Меняем цвет окантовки и фона на средний между белым и цветом кнопки
+    textArea.style.borderColor = color;
+    // Слабая заливка-фон
+    let rgb = window.getComputedStyle(textArea).borderColor.match(/\d+/g);
+    let c = hexToRgb(color);
+    if (c) {
+      // делаем чуть светлее
+      const mix = t => Math.round(t*0.18 + 255*0.82);
+      textArea.style.background = `rgba(${mix(c.r)},${mix(c.g)},${mix(c.b)},0.90)`;
+    }
+  }
+
+  // Hex to rgb {r,g,b}
+  function hexToRgb(hex) {
+    hex = hex.replace('#','');
+    if (hex.length === 3)
+      hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+    if (hex.length!==6) return null;
+    return {
+      r: parseInt(hex.substr(0,2),16),
+      g: parseInt(hex.substr(2,2),16),
+      b: parseInt(hex.substr(4,2),16)
+    };
+  }
+
+  // вариация pop-анимации на "капле"
+  function slicePop(btn) {
+    dropButtons.forEach((b)=>b.style.zIndex=1);
+    btn.style.zIndex=10;
+    btn.animate([
+      {transform: btn.style.transform+' scale(1.07)'},
+      {transform: btn.style.transform+' scale(0.98)'},
+      {transform: btn.style.transform+' scale(1.13)'},
+      {transform: btn.style.transform+' scale(1.00)'}
+    ], {
+      duration: 360,
+      easing: "cubic-bezier(.34,2,.55,.58)"
+    });
+  }
+
+  // Загрузка csv с сервера
+  function loadAndRenderFromUrl(url) {
+    fetch(url)
+      .then(r => {
+        if (!r.ok) throw new Error('Не удалось загрузить файл');
+        return r.text();
+      })
+      .then(csv => {
+        const items = parseCSV(csv);
+        renderCircle(items);
+      })
+      .catch(err => {
+        textArea.textContent = "Не удалось загрузить презентация.csv: " + err.message;
+        textArea.style.background = '#fff4';
+      });
+  }
+
+  // Смена файла пользователем
+  fileInput.addEventListener('change', function() {
+    if (!fileInput.files[0]) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const csv = e.target.result;
+        const items = parseCSV(csv);
+        renderCircle(items);
+    };
+    reader.readAsText(fileInput.files[0], 'utf-8');
+  });
+
+  // По умолчанию загрузить презентация.csv
+  window.addEventListener('DOMContentLoaded', () => {
+    loadAndRenderFromUrl('презентация.csv');
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Генеалогия: поколение = горизонталь, супруги рядом</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body { background: #f5f8fb; font-family: 'Segoe UI', Arial, sans-serif; margin:0;}
+    .svg-container { width: 100vw; height: 850px; overflow: visible; position: relative;}
+    .zoom-controls { position: absolute; top: 20px; left: 40px; z-index: 2; user-select: none;}
+    .zoom-btn { display: inline-block; width: 34px; height: 34px; border: none; background: #e2e6f1; color: #263855; font-weight: bold; font-size: 22px; border-radius: 7px; margin-right:6px; cursor: pointer; vertical-align: middle; outline: none; transition: background .12s;}
+    .zoom-btn:active { background: #91b7dc; color: #234;}
+    .zoom-scale-label { font-size: 15px; color: #233851; margin-left: 8px; vertical-align: middle; background: rgba(255,255,255,0.87); padding:2px 10px; border-radius:6px; border:1px solid #d2d6e2;}
+    svg { background: #fff; display: block; margin:20px 0 8px 0; box-shadow: 0 2px 12px #dde6ee; border-radius: 13px;}
+    .link { fill: none; stroke: #b0b8c1; stroke-width: 2.25px; opacity: 0.91;}
+    .person-block rect { stroke: #455066; stroke-width: 2px; fill: #fff;}
+    .person-block.M rect { fill: #a8d2ff;}
+    .person-block.F rect { fill: #ffd1ef;}
+    .person-block.phantom rect { stroke: #acb6c0; stroke-dasharray: 6 4; fill: #e8eef7;}
+    .person-block.phantom text { fill: #7a88a8; font-style: italic; font-size: 15px;}
+    .person-block .phantommark { font-size: 32px; fill: #bbc; font-style: normal; font-weight: bold;}
+    .person-block text { font: 15px "Segoe UI", Arial, sans-serif; fill: #2c3e50; pointer-events: none;}
+    .person-block .remark { font-size:13px; fill:#5a6090;}
+    .marriage { stroke: #ad9700; stroke-width:2.2px; fill: #ffe083;}
+    .tooltip {
+      position: absolute; background: rgba(255,255,255,0.98); border: 1.5px solid #ccc;
+      border-radius: 8px; box-shadow: 0 2px 8px #b2bee4;
+      padding: 5px 14px 6px 11px; font-size: 14px; color: #333;
+      pointer-events: none; z-index: 9; transition: opacity .13s;
+    }
+  </style>
+</head>
+<body>
+  <h2 style="text-align:center;">Генеалогическая схема: поколения по горизонталям, супруги вместе</h2>
+  <div class="svg-container" id="svg-container">
+    <div class="zoom-controls" id="zoom-controls">
+      <button class="zoom-btn" id="zoom-out">–</button>
+      <button class="zoom-btn" id="zoom-in">+</button>
+      <span class="zoom-scale-label" id="zoom-label">100%</span>
+    </div>
+    <svg id="tree-svg" width="2200" height="800"></svg>
+  </div>
+<script>
+Promise.all([
+  d3.csv("список_персонажей.csv"),
+  d3.csv("список_связей.csv")
+]).then(initGenealogy);
+
+function wrapLines(text, maxWidth, ctx, font = "15px Segoe UI") {
+  ctx.font = font;
+  const words = (text || '').toString().split(' ');
+  const lines = [];
+  let line = '';
+  for (let n = 0; n < words.length; n++) {
+    let testLine = line + words[n] + ' ';
+    if (ctx.measureText(testLine).width > maxWidth && n > 0) {
+      lines.push(line.trim());
+      line = words[n] + ' ';
+    } else {
+      line = testLine;
+    }
+  }
+  if(line.length) lines.push(line.trim());
+  return lines.filter(Boolean);
+}
+function coupleKey(a, b) { return [a, b].sort().join('__'); }
+function splitKey(key) { return key.split('__'); }
+
+function initGenealogy([peopleRaw, linksRaw]) {
+  // --- 1. Данные, дополняем фантомами ---
+  let people = new Map;
+  peopleRaw.forEach(p=>people.set(p.id,p));
+  let parentLinks = linksRaw.filter(l=>l.type==='parent').map(l=>({...l}));
+  // Фантомные по тем же правилам
+  let phantom_id=110000;
+  peopleRaw.forEach(child=>{
+    let childsParents = parentLinks.filter(l=>l.target===child.id).map(l=>l.source);
+    if(childsParents.length < 2){
+      for(let i=childsParents.length;i<2;++i){
+        let pid="ph_"+(phantom_id++);
+        let g=(childsParents[0]&&people.get(childsParents[0]))?({M:"F",F:"M"}[people.get(childsParents[0]).gender]):(i==0?"M":"F");
+        people.set(pid,{id:pid,name:"?",gender:g,isPhantom:true});
+        parentLinks.unshift({source:pid,target:child.id,type:"parent",isPhantom:true});
+        childsParents.unshift(pid);
+      }
+    }
+  });
+
+  // --- 2. Определяем все браки (родительские пары + married-связи), строим описание браков и детей
+  let child2parents={}, couple2marriage=new Map();
+  parentLinks.forEach(l=>{
+    child2parents[l.target]=child2parents[l.target]||[];
+    child2parents[l.target].push(l.source);
+  });
+  for(let ch in child2parents){
+    let ps = child2parents[ch];
+    if(ps.length===2){
+      let k=coupleKey(ps[0],ps[1]);
+      if(!couple2marriage.has(k)){
+        couple2marriage.set(k,{parents:splitKey(k),children:[]});
+      }
+    }
+  }
+  linksRaw.filter(d=>d.type==="married").forEach(l=>{
+    let k=coupleKey(l.source,l.target);
+    if(!couple2marriage.has(k)){
+      couple2marriage.set(k,{parents:splitKey(k),children:[]});
+    }
+  });
+  for(let ch in child2parents){
+    let ps=child2parents[ch]; if(ps.length===2){
+      let k=coupleKey(ps[0],ps[1]);
+      let m=couple2marriage.get(k); if(m) m.children.push(ch);
+    }
+  }
+  let marriages = [];
+  let marriagePairsFlat = new Set();
+  let i=0;
+  couple2marriage.forEach((m,k)=>{
+    m.id="m"+(i++); marriages.push(m);
+    marriagePairsFlat.add(m.parents[0]); marriagePairsFlat.add(m.parents[1]);
+  });
+
+  // --- 3. Распределяем поколения ---
+  // Берём всех людей; поколение (0 - первые, все дети от них - 1 и т.д.)
+  let gens={};
+  // те, кто не дети ни у кого — корневое поколение
+  let roots = Array.from(people.keys()).filter(pid=>{
+    return !parentLinks.some(l=>l.target===pid);
+  });
+  let queue=[...roots];
+  roots.forEach(pid=>{gens[pid]=0;});
+  while(queue.length){
+    let pid = queue.shift();
+    parentLinks.forEach(l=>{
+      if(l.source===pid){
+        let ch=l.target;
+        if(gens[ch]===undefined||gens[ch]>gens[pid]+1){
+          gens[ch]=gens[pid]+1;
+          queue.push(ch);
+        }
+      }
+    });
+  }
+  // -- поколения для браков ---
+  marriages.forEach(m=>{
+    let g0=gens[m.parents[0]], g1=gens[m.parents[1]];
+    let gg=Math.max(g0,g1);
+    gens[m.parents[0]]=gens[m.parents[1]]=gg;
+    m.generation = gg;
+  });
+  let maxGen = Math.max(...Object.values(gens));
+
+  // --- 4. Слой: для каждого поколения — массив групп (marriage + одинокиe) ---
+  let layers=Array(maxGen+1).fill().map(()=>[]);
+  let singlesInGen=Array(maxGen+1).fill().map(()=>[]);
+  let peopleUsed = new Set();
+  marriages.forEach(m=>{
+    let g=m.generation;
+    layers[g].push({type:"marriage", marriage:m, people:[m.parents[0],m.parents[1]]});
+    peopleUsed.add(m.parents[0]); peopleUsed.add(m.parents[1]);
+  });
+  people.forEach((p, pid)=>{
+    let g=gens[pid];
+    if(!peopleUsed.has(pid)){
+      layers[g].push({type:"single", person:pid, people:[pid]});
+    }
+  });
+
+  // --- 5. Размеры блоков --
+  let ctx = document.createElement("canvas").getContext("2d");
+  let sizeMap=new Map;
+  people.forEach(p=>{
+    let maxW=225;
+    let lines = wrapLines(p.name,p.isPhantom?84:maxW,ctx);
+    let sub = (p.remark?wrapLines(p.remark,maxW,ctx,'13px Segoe UI'):[]);
+    let box_w = (p.isPhantom?70:Math.max(120,...lines.map(l=>ctx.measureText(l).width),...sub.map(l=>ctx.measureText(l).width))+22);
+    let box_h = 32 + lines.length*21 + sub.length*15;
+    if(p.isPhantom) { box_h=44; box_w=70;}
+    sizeMap.set(p.id, {_lines:lines, _sub:sub, _boxw:box_w, _boxh:box_h, _boxh_raw:box_h});
+  });
+
+  // --- 6. Ширины слоёв, расстановка без наложения (внутри уровня) ---
+  let xMargin=60, xGap=48, spouseGap=32, y0=70, vertGap=125;
+  let personLayout = {}, marriageLayout = {};
+  let layerWidths = [];
+  for(let g=0;g<=maxGen;++g){
+    let x=xMargin;
+    let blocks=layers[g];
+    for(let k=0; k<blocks.length; ++k){
+      let block=blocks[k];
+      // Супруги рядышком
+      if(block.type==="marriage"){
+        let [id1,id2]=block.people;
+        let s1=sizeMap.get(id1),s2=sizeMap.get(id2);
+        let px1=x+s1._boxw/2, px2=px1+s1._boxw/2+spouseGap+s2._boxw/2;
+        personLayout[id1]={x:px1, y:y0+g*vertGap};
+        personLayout[id2]={x:px2, y:y0+g*vertGap};
+        // позиция брака (между ними)
+        marriageLayout[block.marriage.id]={x:(px1+px2)/2, y:y0+g*vertGap + Math.max(s1._boxh,s2._boxh)/2 + 14};
+        x = px2 + s2._boxw/2 + xGap;
+      }else{
+        let s=sizeMap.get(block.person);
+        let px = x+s._boxw/2;
+        personLayout[block.person]={x:px, y:y0+g*vertGap};
+        x = px + s._boxw/2 + xGap;
+      }
+    }
+    layerWidths[g]=x;
+  }
+
+  // --- 7. Links ---
+  let links=[];
+  marriages.forEach(m=>{
+    let mb = marriageLayout[m.id];
+    m.parents.forEach(pid=>{
+      let p = personLayout[pid];
+      links.push({source:{x:p.x,y:p.y+sizeMap.get(pid)._boxh/2},target:{x:mb.x,y:mb.y-13},type:'spouse'});
+    });
+    m.children.forEach(cid=>{
+      let cpoint = personLayout[cid];
+      if(cpoint){
+        links.push({source:{x:mb.x,y:mb.y+13},target:{x:cpoint.x,y:cpoint.y-sizeMap.get(cid)._boxh/2},type:'child'});
+      }
+    });
+  });
+  // single parent
+  parentLinks.forEach(l=>{
+    let inMarriages = marriages.some(m=>
+      m.parents.includes(l.source)&&m.children.includes(l.target));
+    if(!inMarriages){
+      let src=personLayout[l.source], tgt=personLayout[l.target];
+      if(src && tgt){
+        links.push({source:{x:src.x,y:src.y+sizeMap.get(l.source)._boxh/2},target:{x:tgt.x,y:tgt.y-sizeMap.get(l.target)._boxh/2},type:'singleparent'});
+      }
+    }
+  });
+
+  // --- 8. Bounding box: для центрирования ---
+  let allX = Object.values(personLayout).map(pt=>pt.x);
+  let allY = Object.values(personLayout).map(pt=>pt.y);
+  let allMX= Object.values(marriageLayout).map(pt=>pt.x), allMY = Object.values(marriageLayout).map(pt=>pt.y);
+  let allRectW = Array.from(sizeMap.values()).map(sz=>sz._boxw);
+  let minX = Math.min(...allX,...allMX)-120, maxX = Math.max(...allX,...allMX)+120;
+  let minY = Math.min(...allY,...allMY)-80, maxY = Math.max(...allY,...allMY)+60;
+
+  // --- 9. d3 отрисовка ---
+  const svg = d3.select("svg");
+  svg.selectAll("*").remove();
+  svg.attr("width", Math.max(1400, maxX-minX+200));
+  svg.attr("height", Math.max(650,maxY-minY+180));
+  let rootg=svg.append("g");
+  rootg.selectAll("path.link")
+    .data(links)
+    .join("path")
+    .attr("class","link")
+    .attr("stroke",d=>
+      d.type==="spouse"?"#bba324":
+      d.type==="singleparent"?"#7296b1":"#b0b8c1")
+    .attr("stroke-dasharray",d=>d.type==="singleparent"?"6,7":null)
+    .attr("d",d=>{
+      if(d.type==="spouse") return `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`;
+      else return `M${d.source.x},${d.source.y} C${d.source.x},${(d.source.y+d.target.y)/2} ${d.target.x},${(d.source.y+d.target.y)/2} ${d.target.x},${d.target.y}`;
+    });
+
+  // люди
+  let persons=Array.from(people.entries()).map(([id,p])=>{
+    let pt=personLayout[id], sz=sizeMap.get(id);
+    return {...p,...sz,...pt};
+  });
+  let personBlocks = rootg.selectAll("g.person-block")
+    .data(persons)
+    .join("g")
+    .attr("class",d=>`person-block${d.isPhantom?' phantom':''} ${d.gender||''}`)
+    .attr("transform",d=>d.x!=null&&d.y!=null?`translate(${d.x},${d.y})`:null);
+  personBlocks.append("rect")
+    .attr("x",d=>-d._boxw/2)
+    .attr("y",d=>-d._boxh/2)
+    .attr("width",d=>d._boxw)
+    .attr("height",d=>d._boxh)
+    .attr("rx",12).attr("ry",12);
+  personBlocks.each(function(d){
+    let g = d3.select(this);
+    if(d.isPhantom){
+      g.append("text")
+        .attr("class","phantommark")
+        .attr("x",0)
+        .attr("y",8)
+        .attr("text-anchor","middle")
+        .attr("dominant-baseline","middle")
+        .text("?");
+    }else{
+      let y0 = -d._boxh/2 + 21 + (d._boxh - d._boxh_raw)/2;
+      d._lines.forEach((l,i)=>{
+        g.append("text")
+          .attr("x",0).attr("y",y0 + i*20)
+          .attr("text-anchor","middle")
+          .attr("dominant-baseline","middle")
+          .text(l);
+      });
+      if(d._sub && d._sub.length){
+        let y1 = y0 + d._lines.length*20 + 9;
+        d._sub.forEach((l,j)=>{
+          g.append("text")
+            .attr("x",0).attr("y",y1 + j*15)
+            .attr("class","remark")
+            .attr("text-anchor","middle")
+            .text(l);
+        });
+      }
+    }
+  });
+  // ромбики брака
+  let drawMarriages = marriages.map(m=>({...marriageLayout[m.id]}));
+  let mblocks = rootg.selectAll("g.marriage")
+    .data(drawMarriages)
+    .join("g")
+    .attr("class","marriage")
+    .attr("transform",d=>d.x!=null&&d.y!=null?`translate(${d.x},${d.y})`:null);
+  mblocks.append("polygon")
+    .attr("points","0,-13 14,0 0,13 -14,0")
+    .attr("opacity",.93);
+
+  setupTooltip(people, d3.select("body"), personBlocks, mblocks);
+  setupZoom(svg, rootg, {minX,maxX,minY,maxY,width:maxX-minX,height:maxY-minY});
+}
+
+// ---- Tooltip -- Zoom, стандартные ----
+function setupTooltip(people, body, personNodes, marriageNodes) {
+  const tooltip = body.append("div").attr("class", "tooltip").style("opacity", 0);
+  personNodes.on("mouseover", function(event, d) {
+      tooltip.transition().duration(100).style("opacity", .99);
+      tooltip.html(
+        d.isPhantom
+        ? `<b>Неизвестный родитель</b><br><em>(нет данных)</em>`
+        : `<b>${d.name}</b><br>` +
+          (d.gender==="M"?"Мужчина":"Женщина") +
+          (d.remark?`<br>${d.remark}`:"")
+      );
+    })
+    .on("mousemove", function(event) {
+      tooltip.style("left", (event.pageX + 10) + "px")
+             .style("top", (event.pageY - 18) + "px");
+    })
+    .on("mouseleave", function() { tooltip.transition().duration(120).style("opacity", 0); });
+  marriageNodes.on("mouseover", function(event, d) {
+      tooltip.transition().duration(70).style("opacity", .98);
+      tooltip.html(
+        `<b>Брак:</b> `+
+        (d.parents?d.parents.map(pid=>{
+          const p=people.get(pid);
+          return p ? (p.name==="?"?"<i>?</i>":p.name) : pid;
+        }).join(" + "):"<i>?</i>") +
+        (d.children&&d.children.length ? '<br><span style="color:#679">Дети: '+d.children.map(cid=>people.get(cid)?.name||cid).join(", ") + '</span>' : '<br><i>(без детей)</i>')
+      );
+    })
+    .on("mousemove", function(event) {
+      tooltip.style("left", (event.pageX + 10) + "px")
+             .style("top", (event.pageY - 18) + "px");
+    })
+    .on("mouseleave", function() { tooltip.transition().duration(100).style("opacity", 0); });
+}
+function setupZoom(svg, rootg, bbox) {
+  const container = document.getElementById('svg-container');
+  const contWidth = container.clientWidth-20, contHeight = container.clientHeight-16;
+  const margin = 33;
+  let scaleX = contWidth/(bbox.width + 2*margin), scaleY = contHeight/(bbox.height + 2*margin);
+  let scaleInit = Math.min(scaleX, scaleY, 1);
+  if(!isFinite(scaleInit) || scaleInit <= 0) scaleInit = 1;
+  let transform = d3.zoomIdentity
+    .translate(
+      margin + (contWidth/scaleInit - bbox.width)/2 - bbox.minX,
+      margin + (contHeight/scaleInit - bbox.height)/2 - bbox.minY
+    )
+    .scale(scaleInit);
+  const zoom = d3.zoom()
+    .scaleExtent([0.22, 2.8])
+    .on("zoom", (event) => {
+      rootg.attr("transform", event.transform);
+      updateZoomLabel(event.transform.k);
+    });
+  svg.call(zoom)
+    .call(zoom.transform, transform);
+  document.getElementById('zoom-in').onclick = () => {
+    svg.transition().duration(200).call(zoom.scaleBy, 1.2);
+  };
+  document.getElementById('zoom-out').onclick = () => {
+    svg.transition().duration(200).call(zoom.scaleBy, 1/1.2);
+  };
+  function updateZoomLabel(zoomK) {
+    document.getElementById('zoom-label').textContent = Math.round(zoomK*100) + '%';
+  }
+  updateZoomLabel(scaleInit);
+}
+</script>
+</body>
+</html>
