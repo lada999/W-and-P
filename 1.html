@@ -63,6 +63,7 @@ function getColor(idx) {
     return d3.interpolateRainbow((idx % 16) / 16);
 }
 
+// ---- Изменённая версия: разбивка слов и перенос строк учитывает сверхдлинные слова!
 function wrapSvgText(text, maxWidth, fontSize, fontWeight) {
     let context = d3.select("body").append("svg")
         .style("visibility", "hidden")
@@ -74,14 +75,40 @@ function wrapSvgText(text, maxWidth, fontSize, fontWeight) {
     let words = text.split(/\s+/);
     let lines = [], line = [];
     words.forEach(word=>{
-        let testLine = [...line, word].join(" ");
-        testText.text(testLine);
-        let width = testText.node().getComputedTextLength();
-        if(width > maxWidth && line.length){
-            lines.push(line.join(" "));
-            line=[word];
-        }else{
-            line.push(word);
+        testText.text(word);
+        let wordWidth = testText.node().getComputedTextLength();
+        if (wordWidth > maxWidth) {
+            // разбить длинное слово на подстроки с дефисом
+            let subStr = '';
+            for (let c of word){
+                testText.text(subStr + c);
+                if (testText.node().getComputedTextLength() > maxWidth){
+                    if(subStr.length > 1) {
+                        lines.push((line.length ? line.join(" ")+" " : "") + subStr + '-');
+                        line = [];
+                    }
+                    subStr = c;
+                } else {
+                    subStr += c;
+                }
+            }
+            if (subStr) {
+                if (line.length) {
+                    lines.push(line.join(" "));
+                    line = [];
+                }
+                lines.push(subStr);
+            }
+        } else {
+            let testLine = [...line, word].join(" ");
+            testText.text(testLine);
+            let width = testText.node().getComputedTextLength();
+            if(width > maxWidth && line.length){
+                lines.push(line.join(" "));
+                line=[word];
+            }else{
+                line.push(word);
+            }
         }
     });
     if(line.length) lines.push(line.join(" "));
@@ -177,22 +204,33 @@ d3.csv(CSV_PATH, d3.autoType).then(function(rawdata) {
     // Основные технические параметры
     const colSpace = 280, blockPadX=20, blockPadY=16, blockSpacingY=18;
     const titleFontSize=17, titleWeight=600, descrFontSize=14, descrWeight=400, lineSpacing=5, circleR=10;
+    const MAX_BLOCK_WIDTH = 400; // <-- можно подобрать по вкусу
 
-    // Помечаем каждое событие потребностями размера, обрабатываем строки
+    // ---- Ключевой изменённый участок: размер блока определяется по ширине текста и числу кружков
     allDates.forEach(date => {
       eventsByDate[date].forEach(ev=>{
-        ev._titleLines = wrapSvgText(ev.event_name, 240-blockPadX*2, titleFontSize, titleWeight);
-        ev._descrLines = wrapSvgText(ev.character_description, 240-blockPadX*2, descrFontSize, descrWeight);
 
+        // 1. Сначала максимальная возможная ширина (без паддингов)
+        const candidateWidth = MAX_BLOCK_WIDTH - blockPadX*2;
+
+        // 2. Разделяем тексты по candidateWidth
+        ev._titleLines = wrapSvgText(ev.event_name, candidateWidth, titleFontSize, titleWeight);
+        ev._descrLines = wrapSvgText(ev.character_description, candidateWidth, descrFontSize, descrWeight);
+
+        // 3. Определяем максимальную длину реально получившихся строк (чтобы не резать лишнего)
         let titleWs = ev._titleLines.map(line => getTextWidth(line, titleFontSize, titleWeight));
         let descrWs = ev._descrLines.map(line => getTextWidth(line, descrFontSize, descrWeight));
-        let cont = Math.max(...titleWs, ...descrWs, (ev.characters.length*circleR*2+30));
-        ev._rectW = Math.min(Math.max(cont+blockPadX*2, 120), 240);
 
+        let cont = Math.max(...titleWs, ...descrWs, (ev.characters.length*circleR*2+30));
+        // 4. Ширина блока не меньше min и не больше MAX_BLOCK_WIDTH (с паддингами)
+        ev._rectW = Math.max(Math.min(cont+blockPadX*2, MAX_BLOCK_WIDTH), 120);
+
+        // Высота
         ev._rectH =
             blockPadY + getTextHeight(ev._titleLines, titleFontSize, lineSpacing)
             + 5 + getTextHeight(ev._descrLines, descrFontSize, lineSpacing)
             + 19 + 17 + blockPadY; // для кружков и подложки
+
       });
     });
 

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Презентация — «Война и мир»</title>
+
+    <!-- ГЛОБАЛЬНЫЕ СТИЛИ (CSS-код хранится в файле стили.html) -->
+    <link rel="stylesheet" href="стили.html">
+
+    <!-- Мини-стиль только для рамки и кнопок -->
+    <style>
+        body{
+            background: #e2f4fb;
+            margin:0;
+            height:100vh;
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+            justify-content:center;
+        }
+        #stage{width:100%;max-width:1280px;}
+        #controls{margin-top:12px;color:#134142;font-family:sans-serif;}
+        button{
+            background:#444;
+            border:0;
+            color:#fff;
+            padding:8px 14px;
+            margin:0 4px;
+            font-size:1rem;
+            cursor:pointer;
+            border-radius:4px;
+        }
+        button:hover{background:#666;}
+    </style>
+</head>
+<body>
+
+    <!-- Контейнер, куда будут поочерёдно подгружаться слайды -->
+    <div id="stage"></div>
+
+    <!-- Кнопки переключения -->
+    <div id="controls">
+        <button id="prev">← предыдущий</button>
+        <span  id="info">1 / 5</span>
+        <button id="next">следующий →</button>
+    </div>
+
+    <!-- ERUDA — мобильные DevTools, чтобы сразу видеть ошибки -->
+    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+    <script>eruda.init();</script>
+
+    <script>
+    (function () {
+        /* Список файлов-слайдов (имена кириллицей + дефис) */
+        const slides = [
+            'слайд-1.html',
+            'слайд-2.html',
+            'слайд-3.html',
+            'слайд-4.html',
+            'слайд-5.html'
+        ];
+
+        const stage   = document.getElementById('stage');
+        const info    = document.getElementById('info');
+        const prevBtn = document.getElementById('prev');
+        const nextBtn = document.getElementById('next');
+
+        let index = 0;               // текущий номер слайда
+
+        /* Загрузка html-файла и вставка в #stage */
+        async function loadSlide(i){
+            index = (i + slides.length) % slides.length;   // зацикливание
+            const file = slides[index];
+
+            try{
+                /* encodeURI — на случай проблем с кириллицей в URL */
+                const resp = await fetch(encodeURI(file));
+                if(!resp.ok) throw new Error(resp.status);
+                stage.innerHTML = await resp.text();
+            }
+            catch(e){
+                stage.innerHTML =
+                    `<div style="color:#134142;padding:30px">
+                       Ошибка загрузки «${file}» (код ${e}) — проверьте путь/имя
+                     </div>`;
+                console.error('404/ошибка при загрузке:', file, e);
+            }
+            /* Обновляем индикатор */
+            info.textContent = `${index+1} / ${slides.length}`;
+        }
+
+        function next(){ loadSlide(index+1); }
+        function prev(){ loadSlide(index-1); }
+
+        prevBtn.addEventListener('click', prev);
+        nextBtn.addEventListener('click', next);
+
+        /* Стартуем */
+        loadSlide(0);
+    })();
+    </script>
+</body>
+</html>
