@@ -33,7 +33,7 @@
             opacity: 0;
             transition: opacity 0.5s ease;
             box-sizing: border-box;
-            padding: 20px;
+            padding: 5px 10px;
         }
         
         .slide.active {
@@ -42,8 +42,8 @@
         }
         
         .slide-title {
-            font-size: 2.5em;
-            margin-bottom: 15px;
+            font-size: 1.8em;
+            margin-bottom: 10px;
             color: #8B0000;
             font-weight: bold;
             text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
@@ -53,7 +53,7 @@
         .slide-content {
             flex-grow: 1;
             width: 100%;
-            height: calc(100% - 100px);
+            height: calc(100% - 80px);
             display: flex;
             flex-direction: column;
         }
@@ -67,22 +67,22 @@
         
         .nav-buttons {
             position: absolute;
-            bottom: 20px;
+            bottom: 15px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
-            gap: 20px;
+            gap: 12px;
             z-index: 10;
         }
         
         .nav-button {
-            padding: 10px 25px;
+            padding: 8px 20px;
             background-color: #8B0000;
             color: white;
             border: none;
-            border-radius: 30px;
+            border-radius: 20px;
             cursor: pointer;
-            font-size: 1em;
+            font-size: 0.9em;
             transition: all 0.3s ease;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
@@ -99,10 +99,10 @@
         
         .slide-number {
             position: absolute;
-            bottom: 20px;
-            right: 20px;
+            bottom: 15px;
+            right: 15px;
             color: #8B0000;
-            font-size: 0.9em;
+            font-size: 0.85em;
         }
         
         .decoration {
@@ -146,10 +146,7 @@
                 
         <!-- Слайд 1: схема -->
         <div class="slide active" id="slide1">
-            <h1 class="slide-title">Война и Мир</h1>
             <div class="slide-content">
-                Инфографика по роману Льва Толстого<br>
-                Анализ ключевых аспектов произведения
                 <iframe class="slide-iframe" src="./1.html"></iframe>
             </div>
             <div class="slide-number">1 / 6</div>
@@ -157,47 +154,38 @@
         
         <!-- Слайд 2: Основные персонажи -->
         <div class="slide" id="slide2">
-            <h1 class="slide-title">Основные персонажи</h1>
             <div class="slide-content">
                 <iframe class="slide-iframe" src="./персонажи.html"></iframe>
-                Пьер Безухов, Андрей Болконский, Наташа Ростова
             </div>
             <div class="slide-number">2 / 6</div>
         </div>
         
         <!-- Слайд 4: Темы произведения -->
         <div class="slide" id="slide4">
-            <h1 class="slide-title">Ключевые темы</h1>
             <div class="slide-content">
                 <iframe class="slide-iframe" src="./идеи-2.html"></iframe>
-                Война и мир, любовь и семья, поиск смысла жизни
             </div>
             <div class="slide-number">4 / 6</div>
         </div>
         
         <!-- Слайд 5: Статистика -->
         <div class="slide" id="slide5">
-            <h1 class="slide-title">Цифры и факты</h1>
             <div class="slide-content">
                 <iframe class="slide-iframe" src="./Статистика_слов.html"></iframe>
-                Количество страниц, персонажей, лет написания
             </div>
             <div class="slide-number">5 / 6</div>
         </div>
         
          <!-- Слайд 6: Статистика -->
         <div class="slide" id="slide5">
-            <h1 class="slide-title">Цифры и факты</h1>
             <div class="slide-content">
                 <iframe class="slide-iframe" src="./Статистика_слов_2.html"></iframe>
-                Количество страниц, персонажей, лет написания
             </div>
             <div class="slide-number">5 / 6</div>
         </div>
         
         <!-- Слайд 7: География -->
         <div class="slide" id="slide6">
-            <h1 class="slide-title">Карта перемещений</h1>
             <div class="slide-content">
                 <iframe class="slide-iframe"
                      src="./movements.html?places=war_and_peace_places_osm.csv&moves=war_and_peace_movements.csv"
