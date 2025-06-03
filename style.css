@@ -30,7 +30,7 @@ html, body {
     width: 100%;
     max-width: 1100px;
     min-height: 320px;
-    margin: 36px auto;
+    margin: 24px auto;
     border-left: 12px double var(--accent);
     border-right: 12px double var(--accent);
     border-top: 8px solid var(--accent);
@@ -41,11 +41,9 @@ html, body {
     position: relative;
 }
 
+/* Заголовок больше НЕ sticky! */
 .slide>h1 {
     grid-area: title;
-    position: sticky;
-    top: 0;
-    z-index: 3;
     background: var(--title);
     color: var(--text);
     display: flex;
@@ -54,6 +52,7 @@ html, body {
     text-align: center;
     font-size: 2.2rem;
     min-height: 80px;
+    height: 80px;
     border-bottom:3px solid #5bddc7;
     box-shadow: 0 4px 18px -6px #37bfa180;
 }

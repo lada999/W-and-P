@@ -3,31 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <title>Презентация — «Война и мир»</title>
-    <!-- Стили -->
     <link rel="stylesheet" href="style.css">
     <style>
         body {
             background: #e2f4fb;
             margin: 0;
+            padding: 0;
             height: 100vh;
             min-height: 100dvh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
             font-family: "Segoe UI", Helvetica, Arial, sans-serif;
         }
         #stage {
             width: 100%;
             max-width: 1280px;
-            height: 92vh;          /* Высота с учётом панели управления */
+            height: 92vh;
             min-height: 320px;
             overflow: auto;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            margin: 0 auto;
+            background: #e2f4fb;
         }
-        /* Панель управления */
         #controls {
             position: fixed;
             left: 50%;
@@ -85,21 +79,12 @@
     </style>
 </head>
 <body>
-
-    <!-- Контейнер для слайда -->
     <div id="stage"></div>
-
-    <!-- Кнопки -->
     <div id="controls">
         <button id="prev" title="Предыдущий слайд">← предыдущий</button>
         <span id="info">1 / 5</span>
         <button id="next" title="Следующий слайд">следующий →</button>
     </div>
-
-    <!-- Можно удалить или оставить для отладки -->
-    <!--<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-    <script>eruda.init();</script>-->
-
     <script>
     (function () {
         // Перечислите ваши файлы-слайды
@@ -118,7 +103,6 @@
 
         let index = 0; // текущий номер слайда
 
-        // Загрузка html-файла и вставка в #stage
         async function loadSlide(i){
             index = (i + slides.length) % slides.length;
             const file = slides[index];
@@ -135,6 +119,7 @@
                 console.error('Ошибка при загрузке:', file, e);
             }
             info.textContent = `${index+1} / ${slides.length}`;
+            stage.scrollTop = 0; // всегда наверх при смене слайда!
         }
 
         function next(){ loadSlide(index+1); }
