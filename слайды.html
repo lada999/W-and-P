@@ -3,55 +3,106 @@
 <head>
     <meta charset="UTF-8">
     <title>Презентация — «Война и мир»</title>
-
-    <!-- ГЛОБАЛЬНЫЕ СТИЛИ (CSS-код хранится в файле стили.html) -->
-    <link rel="stylesheet" href="стили.html">
-
-    <!-- Мини-стиль только для рамки и кнопок -->
+    <!-- Стили -->
+    <link rel="stylesheet" href="style.css">
     <style>
-        body{
+        body {
             background: #e2f4fb;
-            margin:0;
-            height:100vh;
-            display:flex;
-            flex-direction:column;
-            align-items:center;
-            justify-content:center;
+            margin: 0;
+            height: 100vh;
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: "Segoe UI", Helvetica, Arial, sans-serif;
         }
-        #stage{width:100%;max-width:1280px;}
-        #controls{margin-top:12px;color:#134142;font-family:sans-serif;}
-        button{
-            background:#444;
-            border:0;
-            color:#fff;
-            padding:8px 14px;
-            margin:0 4px;
-            font-size:1rem;
-            cursor:pointer;
-            border-radius:4px;
+        #stage {
+            width: 100%;
+            max-width: 1280px;
+            height: 92vh;          /* Высота с учётом панели управления */
+            min-height: 320px;
+            overflow: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        button:hover{background:#666;}
+        /* Панель управления */
+        #controls {
+            position: fixed;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 28px;
+            z-index: 20;
+            background: rgba(255,255,255,0.97);
+            border-radius: 12px;
+            box-shadow: 0 4px 24px 0 rgba(55,191,161,0.12);
+            padding: 10px 24px;
+            color: #134142;
+            font-family: sans-serif;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 260px;
+        }
+        button {
+            background: #37bfa1;
+            border: 0;
+            color: #fff;
+            font-weight: bold;
+            padding: 10px 18px;
+            margin: 0 2px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: background 0.2s, box-shadow 0.2s;
+            box-shadow: 0 1px 4px rgba(39,191,161,0.06);
+            outline: none;
+        }
+        button:hover,
+        button:focus {
+            background: #2cb68f;
+            box-shadow: 0 2px 6px rgba(39,191,161,0.15);
+        }
+        #info {
+            font-size: 1.05rem;
+            font-weight: 600;
+            min-width: 55px;
+            text-align: center;
+            color: #1c3f70;
+            letter-spacing: 0.04em;
+        }
+        @media (max-width: 700px) {
+            #stage { max-width: 100vw; }
+            #controls {
+                padding: 7px 7vw;
+                font-size: 0.95rem;
+                border-radius: 6px;
+            }
+            button { padding: 8px 10px; font-size: 1rem; }
+            #info { min-width: 44px; }
+        }
     </style>
 </head>
 <body>
 
-    <!-- Контейнер, куда будут поочерёдно подгружаться слайды -->
+    <!-- Контейнер для слайда -->
     <div id="stage"></div>
 
-    <!-- Кнопки переключения -->
+    <!-- Кнопки -->
     <div id="controls">
-        <button id="prev">← предыдущий</button>
-        <span  id="info">1 / 5</span>
-        <button id="next">следующий →</button>
+        <button id="prev" title="Предыдущий слайд">← предыдущий</button>
+        <span id="info">1 / 5</span>
+        <button id="next" title="Следующий слайд">следующий →</button>
     </div>
 
-    <!-- ERUDA — мобильные DevTools, чтобы сразу видеть ошибки -->
-    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-    <script>eruda.init();</script>
+    <!-- Можно удалить или оставить для отладки -->
+    <!--<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+    <script>eruda.init();</script>-->
 
     <script>
     (function () {
-        /* Список файлов-слайдов (имена кириллицей + дефис) */
+        // Перечислите ваши файлы-слайды
         const slides = [
             'слайд-1.html',
             'слайд-2.html',
@@ -65,15 +116,13 @@
         const prevBtn = document.getElementById('prev');
         const nextBtn = document.getElementById('next');
 
-        let index = 0;               // текущий номер слайда
+        let index = 0; // текущий номер слайда
 
-        /* Загрузка html-файла и вставка в #stage */
+        // Загрузка html-файла и вставка в #stage
         async function loadSlide(i){
-            index = (i + slides.length) % slides.length;   // зацикливание
+            index = (i + slides.length) % slides.length;
             const file = slides[index];
-
             try{
-                /* encodeURI — на случай проблем с кириллицей в URL */
                 const resp = await fetch(encodeURI(file));
                 if(!resp.ok) throw new Error(resp.status);
                 stage.innerHTML = await resp.text();
@@ -82,10 +131,9 @@
                 stage.innerHTML =
                     `<div style="color:#134142;padding:30px">
                        Ошибка загрузки «${file}» (код ${e}) — проверьте путь/имя
-                     </div>`;
-                console.error('404/ошибка при загрузке:', file, e);
+                    </div>`;
+                console.error('Ошибка при загрузке:', file, e);
             }
-            /* Обновляем индикатор */
             info.textContent = `${index+1} / ${slides.length}`;
         }
 
@@ -95,7 +143,7 @@
         prevBtn.addEventListener('click', prev);
         nextBtn.addEventListener('click', next);
 
-        /* Стартуем */
+        // Первый слайд
         loadSlide(0);
     })();
     </script>
