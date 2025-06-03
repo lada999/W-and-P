@@ -1,0 +1,122 @@
+:root {
+    --bg-page:  #e2f4fb;
+    --title:    #5fc6e8;
+    --info:     #cbeeed;
+    --accent:   #37bfa1;
+    --speak:    #b5e9fe;
+    --text:     #134142;
+    --text-blue:#1c3f70;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+html, body {
+    height: 100%;
+    min-height: 100%;
+    width: 100vw;
+    font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+    color: var(--text);
+    background: var(--bg-page);
+}
+
+.slide {
+    display: grid;
+    grid-template-areas:
+        "title title"
+        "info pic"
+        "speaker speaker";
+    grid-template-columns: 60% 40%;
+    grid-template-rows: 80px 1fr 120px;
+    width: 100%;
+    max-width: 1100px;
+    min-height: 320px;
+    margin: 36px auto;
+    border-left: 12px double var(--accent);
+    border-right: 12px double var(--accent);
+    border-top: 8px solid var(--accent);
+    border-bottom: 8px solid var(--accent);
+    border-radius: 16px;
+    background: #eefffc;
+    box-shadow: 0 8px 24px rgba(39,191,161,0.12), 0 0 0 6px #b5e9fe33;
+    position: relative;
+}
+
+.slide>h1 {
+    grid-area: title;
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: var(--title);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 2.2rem;
+    min-height: 80px;
+    border-bottom:3px solid #5bddc7;
+    box-shadow: 0 4px 18px -6px #37bfa180;
+}
+.info {
+    grid-area: info;
+    background: var(--info);
+    padding: 32px 36px 26px;
+    font-size: 1.13rem;
+    line-height: 1.56;
+}
+.info b, .info strong { color:var(--accent); }
+.info ul { margin:13px 0 0 22px; }
+.info li { margin-bottom:8px; }
+.pic {
+    grid-area: pic;
+    background: #d6f9ff;
+    border-left:6px solid var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 19px;
+    min-width: 0;
+    min-height: 120px;
+}
+.pic img {
+    max-width: 100%;
+    max-height: 290px;
+    object-fit: contain;
+}
+.speaker {
+    grid-area: speaker;
+    background: var(--speak);
+    padding: 24px 36px;
+    font-size: 1.07rem;
+    overflow-y: auto;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+
+/* Адаптив */
+@media (max-width: 900px) {
+    .slide {
+        grid-template-areas:
+            "title"
+            "info"
+            "pic"
+            "speaker";
+        grid-template-columns: 1fr;
+        grid-template-rows: 70px 1fr 160px 100px;
+        max-width: 99vw;
+    }
+    .pic {
+        border-left: none;
+        border-top: 6px solid var(--accent);
+        margin-top: 12px;
+        min-height: 90px;
+        min-width: 0;
+    }
+}
+@media (max-width: 600px) {
+    .slide {
+        border-radius: 6px;
+    }
+    .info, .speaker { padding-left: 12px; padding-right: 12px; }
+}
