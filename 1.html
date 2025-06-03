@@ -5,24 +5,62 @@
 <title>Хронологическая схема "Войны и мир"</title>
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <style>
-    body { font-family: "Segoe UI", Arial, sans-serif; margin: 0; background: #fcfcfa; }
+    body {
+        font-family: "Segoe UI", Arial, sans-serif;
+        margin: 0;
+        background: #fcfcfa;
+        overflow: hidden; /* теперь внешний скролл не появляется */
+    }
     #container {
-        display: flex; align-items: flex-start;
-        min-width: 100vw; overflow-x: auto;
+        display: flex;
+        align-items: center;
+        height: 100vh;
+        width: 100vw;
+        /* убрано min-width и overflow-x: auto; */
     }
     #legend {
-        min-width: 200px; padding: 20px 10px 20px 30px;
+        min-width: 220px; padding: 20px 15px 20px 30px;
         background: #f3f3ed; border-right: 1px solid #ccc;
         position: sticky; left: 0; top: 0; height: 100vh; overflow-y: auto;
+        box-sizing: border-box;
     }
     #legend .legend-entry { display: flex; align-items: center; margin-bottom: 8px; font-size: 0.96em; }
     .legend-color { width: 18px; height: 18px; margin-right: 9px; border-radius: 4px; border: 1px solid #999; display: inline-block; }
-    #timeline { overflow-x: auto; }
-    #validity-log { padding: 11px 20px; background: #fffbe0; font-size: 1.02em; color: #2b2902; border-bottom: 1px solid #ccc; margin-left:210px; }
-    svg { background: #f7f7f0; }
+    #timeline {
+        overflow-x: auto;
+        flex-grow: 1;
+        height: 100vh;
+        min-width: 0;
+        /* ! важное дополнение: min-width, flex-basis = 0, избавляет от лишнего скролла */
+        /* flex-basis: 0;  */
+        /* Можно явно width: 100vw поставить, если будут проблемы */
+    }
+    #validity-log { padding: 11px 20px; background: #fffbe0; font-size: 1.02em; color: #2b2902; border-bottom: 1px solid #ccc; margin-left:220px; }
+    #tooltip-message {
+        position: fixed;
+        top: 32px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #fffbe0;
+        color: #23230f;
+        font-size: 1.11em;
+        border: 1px solid #a6a36c;
+        border-radius: 8px;
+        padding: 14px 32px;
+        box-shadow: 0 8px 32px #2222;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s;
+        z-index: 5999;
+    }
+    #tooltip-message.visible {
+        opacity: 1;
+        pointer-events: auto;
+    }
+    svg { background: #f7f7f0; height: 100%; }
     .event-rect { box-shadow: 0 2px 8px #0002; }
     .event-text { pointer-events: none; white-space: pre-wrap; }
-    .date-label { font-size: 0.98em; fill: #5a5a59; text-anchor: middle; font-style: italic; font-weight: 540; }
+    .date-label { font-size: 1.4em; fill: #2d3a5e; text-anchor: middle; font-style: italic; font-weight: 700; }
     .character-line { stroke-width: 3px; fill: none; opacity: 0.9; }
     .misc-line { stroke: #999 !important; stroke-dasharray: 7 5; opacity: 0.8; }
     .event-rect:hover { stroke: #222; stroke-width: 3; }
@@ -38,7 +76,9 @@
 </style>
 </head>
 <body>
-<div id="validity-log"></div>
+<div id="validity-log" style="display:none"></div>
+<!-- тултип для системных сообщений -->
+<div id="tooltip-message"></div>
 <div id="container">
     <div id="legend">
         <h3>Персонажи:</h3>
@@ -132,6 +172,15 @@ function getTextWidth(line, fontSize, fontWeight) {
 }
 
 d3.csv(CSV_PATH, d3.autoType).then(function(rawdata) {
+    // --- тултип-функция
+    function showTooltipMessage(msg, duration=2000) {
+        const el = document.getElementById('tooltip-message');
+        el.textContent = msg;
+        el.classList.add('visible');
+        clearTimeout(el._hideTimeout);
+        el._hideTimeout = setTimeout(() => el.classList.remove('visible'), duration);
+    }
+
     let valid = [], invalid = [];
     rawdata.forEach((row,i)=>{
         let errs = [];
@@ -146,17 +195,26 @@ d3.csv(CSV_PATH, d3.autoType).then(function(rawdata) {
         else { row.characters=chs; valid.push(row);}
     });
 
+    // validity-log скрываем, тултип используем для сообщений
     let box = d3.select("#validity-log")
-        .attr("class", invalid.length ? "invalid" : "valid");
+        .attr("class", invalid.length ? "invalid" : "valid")
+        .style("display", "none"); // не показываем
+
     if(invalid.length){
-        box.html(`TRUDA! В ходе проверки CSV обнаружено <b>${invalid.length}</b> невалидных строк.<br>
+        // тултип + подробное в validity-log (если захотите показать)
+        showTooltipMessage(`ОШИБКА CSV: ${invalid.length} невалидных строк!`);
+        box.style("display","block").html(`TRUDA! В ходе проверки CSV обнаружено <b>${invalid.length}</b> невалидных строк.<br>
             Валидных событий: <b>${valid.length}</b> из ${rawdata.length}.<br>
             <details style="margin-top:7px"><summary>Посмотреть ошибки:</summary>
                 <pre style="font-size:0.98em">${invalid.map(x=>`Строка #${x.index+2}: ${x.errs.join(', ')}`).join('\n')}</pre>
               </details>
               <div class="truda">TRUDA</div>
         `);
-    } else { box.html(`Файл успешно загружен, все события валидны (${valid.length}).`);}
+    } else { 
+        showTooltipMessage(`Файл успешно загружен, все события валидны (${valid.length})`);
+        // validity-log не показываем
+        // box.style("display","block").html(`Файл успешно загружен, все события валидны (${valid.length}).`);
+    }
     if(valid.length===0){
         d3.select("#viz").append("text")
             .attr("x",50).attr("y",50)

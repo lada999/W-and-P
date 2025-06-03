@@ -8,212 +8,216 @@
             background: linear-gradient(135deg, #e3e9f9, #eef2ff 100%);
             font-family: 'Segoe UI', Arial, sans-serif;
             margin: 0;
-            padding: 40px 0;
+            padding: 40px 20px;
         }
         h2 {
             text-align: center;
             color: #2d3a5e;
             letter-spacing: 1px;
-            margin-bottom: 20px;
+            margin-bottom: 40px;
             text-shadow: 0 1px 0 #fff;
         }
-        .table-container {
-            max-width: 1300px;
+        .circle-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 30px;
+            max-width: 100vw;
             margin: 0 auto;
-            background: #fff;
-            border-radius: 16px;
-            box-shadow: 0 6px 40px 0 rgba(35,65,120,0.12);
-            overflow: hidden;
-            border: 1.5px solid #e3e5ed;
         }
-        .table-scroll {
-            max-height: 320px; /* Сделано меньше, чтобы прокрутка появлялась при большем количестве строк */
-            overflow-y: auto;
-            overflow-x: auto;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            min-width: 1100px;
-        }
-        th, td {
-            padding: 14px 12px;
-            text-align: left;
-        }
-        th {
+        .circle {
+            width: 140px;
+            height: 140px;
             background: #405fcf;
-            color: #fff;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            font-size: 16px;
-            position: sticky;
-            top: 0;
-            z-index: 2;
-        }
-        tr {
-            transition: background 0.2s;
-        }
-        tr:hover {
-            background: #e8f0ff;
-        }
-        tr:nth-child(even) td {
-            background: #f5f8fd;
-        }
-        tr:nth-child(odd) td {
-            background: #fff;
-        }
-        .divider-row td {
-            background: #dae7ff !important;
-            color: #4456bb;
-            font-size: 17px;
-            font-weight: bold;
+            border-radius: 50%;
+            box-shadow: 0 6px 20px rgba(64, 95, 207, 0.4);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
             text-align: center;
-            letter-spacing: 1px;
+            padding: 15px;
+            cursor: default;
+            transition: background 0.3s, box-shadow 0.3s;
         }
-        /* Скроллбар */
-        .table-scroll::-webkit-scrollbar {
-            width: 10px;
+        .circle:hover {
+            background: #2d3a5e;
+            box-shadow: 0 8px 30px rgba(45, 58, 94, 0.7);
         }
-        .table-scroll::-webkit-scrollbar-thumb {
-            background: #b7c2ea;
-            border-radius: 10px;
+        .circle .name {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            line-height: 1.2;
         }
-        .table-scroll::-webkit-scrollbar-track {
-            background: #e3eafc;
+        .circle .status {
+            font-size: 12px;
+            font-style: italic;
+            opacity: 0.8;
+            margin-bottom: 8px;
         }
-        @media (max-width: 1200px) {
-            .table-container { max-width: 99vw;}
-            table { font-size: 13px; min-width: 800px;}
-            th, td { padding: 10px 6px;}
+        .circle .desc {
+            font-size: 11px;
+            line-height: 1.2;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-height: 3.6em; /* 3 строки */
+        }
+        @media (max-width: 600px) {
+            .circle {
+                width: 110px;
+                height: 110px;
+                font-size: 12px;
+                padding: 10px;
+            }
+            .circle .name {
+                font-size: 14px;
+            }
+            .circle .status {
+                font-size: 10px;
+            }
+            .circle .desc {
+                font-size: 10px;
+                max-height: 3.2em;
+            }
         }
     </style>
 </head>
 <body>
     <h2>Основные и второстепенные персонажи романа «Война и мир»</h2>
-    <div class="table-container">
-        <div class="table-scroll">
-            <table>
-                <thead>
-                <tr>
-                    <th>Имя персонажа</th>
-                    <th>Социальное положение</th>
-                    <th>Краткая характеристика</th>
-                </tr>
-                </thead>
-                <tbody>
-                <!-- Основные персонажи -->
-                <tr>
-                    <td>Пьер Безухов</td>
-                    <td>Граф</td>
-                    <td>Добродушный, наивный, ищет истину и смысл жизни, становится масоном, наследник огромного состояния.</td>
-                </tr>
-                <tr>
-                    <td>Андрей Болконский</td>
-                    <td>Князь</td>
-                    <td>Благородный, серьезный, ранимый, склонен к самоанализу, переживает разочарования и личностный рост.</td>
-                </tr>
-                <tr>
-                    <td>Наташа Ростова</td>
-                    <td>Графиня</td>
-                    <td>Очаровательная, жизнерадостная, музыкальна, подвержена эмоциям, взрослеет через любовь и испытания.</td>
-                </tr>
-                <tr>
-                    <td>Марья Болконская</td>
-                    <td>Княжна</td>
-                    <td>Скромная, христиански смиренная, глубоко верующая, предана семье.</td>
-                </tr>
-                <tr>
-                    <td>Элен Курагина</td>
-                    <td>Княжна</td>
-                    <td>Прекрасна внешне, но эгоистична, расчетлива, аморальна, манипулирует окружающими.</td>
-                </tr>
-                <tr>
-                    <td>Анатоль Курагин</td>
-                    <td>Князь</td>
-                    <td>Легкомысленный, человек страстей и удовольствий, не заботится о последствиях своих поступков.</td>
-                </tr>
-                <tr>
-                    <td>Николай Ростов</td>
-                    <td>Граф</td>
-                    <td>Честен, предан семье, наивен, горяч, мечтает о славе на войне, становится опорой рода Ростовых.</td>
-                </tr>
-                <tr>
-                    <td>Соня Александровна</td>
-                    <td>Дворянка</td>
-                    <td>Покорная, жертвенная, всю жизнь любит Николая Ростова, отказывается от личного счастья ради семьи.</td>
-                </tr>
-                <tr>
-                    <td>Марья Дмитриевна Ахросимова</td>
-                    <td>Дворянка</td>
-                    <td>Решительная, волевая, авторитетна, "гроза города", окружена всеобщим уважением.</td>
-                </tr>
-                <tr>
-                    <td>Василий Курагин</td>
-                    <td>Князь</td>
-                    <td>Лукавый интриган, заботится о выгоде семьи, искусный дипломат и интриган.</td>
-                </tr>
-                <tr>
-                    <td>Мария Ростова</td>
-                    <td>Графиня</td>
-                    <td>Старшая сестра Наташи, рассудительная и заботливая, часто руководит семейными делами.</td>
-                </tr>
-                <tr>
-                    <td>Илья Ростов</td>
-                    <td>Граф</td>
-                    <td>Отец Наташи и Николая, добродушен, расточителен, любит праздники, искренне предан своим детям.</td>
-                </tr>
-                <tr>
-                    <td>Князь Николай Андреевич Болконский (Старый князь)</td>
-                    <td>Князь</td>
-                    <td>Отец Андрея и Марьи, строгий, нелюдимый, уважаемый в обществе, отличается суровым нравом.</td>
-                </tr>
-                <tr>
-                    <td>Платон Каратаев</td>
-                    <td>Солдат</td>
-                    <td>Олицетворение народной мудрости, простоты и смирения, оказывает сильное влияние на Пьера.</td>
-                </tr>
-                <tr>
-                    <td>Долохов Фёдор Иванович</td>
-                    <td>Офицер</td>
-                    <td>Храбрый, остроумный, мстительный и рисковый авантюрист, друг Николая Ростова.</td>
-                </tr>
-                <!-- Разделитель -->
-                <tr class="divider-row">
-                    <td colspan="3">Второстепенные персонажи</td>
-                </tr>
-                <!-- Второстепенные персонажи -->
-                <tr>
-                    <td>Борис Друбецкой</td>
-                    <td>Офицер</td>
-                    <td>Карьерист, ловкий, честолюбивый, друг Николая Ростова, стремится подняться при дворе.</td>
-                </tr>
-                <tr>
-                    <td>Анна Павловна Шерер</td>
-                    <td>Фрейлина</td>
-                    <td>Организатор салонов в Петербурге, любит светскую жизнь, вхожа во многие высокие круги.</td>
-                </tr>
-                <tr>
-                    <td>Анна Михайловна Друбецкая</td>
-                    <td>Графиня</td>
-                    <td>Мать Бориса, бедная, но умная и предприимчивая, всегда заботится о будущем сына.</td>
-                </tr>
-                <tr>
-                    <td>Жюли Карагина</td>
-                    <td>Графиня</td>
-                    <td>Подруга Марьи Болконской, добрая, отличается религиозностью и искренностью.</td>
-                </tr>
-                <tr>
-                    <td>Федор Иванович Денисов</td>
-                    <td>Офицер</td>
-                    <td>Дружелюбный, честный, храбрый гусар, близкий друг Николая Ростова.</td>
-                </tr>
-                <tr>
-                    <td>Тихон Щербатый</td>
-                    <td>Крестьянин</td>
-                    <td>Слуга князя Болконского, ловкий партизан, проявляет смелость в отряде Долохова.</td>
-                </tr>
-                </tbody>
-            </table>
+    <div class="circle-container">
+        <div class="circle">
+            <div class="name">Пьер Безухов</div>
+            <div class="status">Граф</div>
+            <div class="desc">Добродушный, наивный, ищет истину и смысл жизни, становится масоном, наследник огромного состояния.</div>
+        </div>
+        <div class="circle">
+            <div class="name">Андрей Болконский</div>
+            <div class="status">Князь</div>
+            <div class="desc">Благородный, серьезный, ранимый, склонен к самоанализу, переживает разочарования и личностный рост.</div>
+        </div>
+        <div class="circle">
+            <div class="name">Наташа Ростова</div>
+            <div class="status">Графиня</div>
+            <div class="desc">Очаровательная, жизнерадостная, музыкальна, подвержена эмоциям, взрослеет через любовь и испытания.</div>
+        </div>
+        <div class="circle">
+            <div class="name">Марья Болконская</div>
+            <div class="status">Княжна</div>
+            <div class="desc">Скромная, христиански смиренная, глубоко верующая, предана семье.</div>
+        </div>
+        <div class="circle">
+            <div class="name">Элен Курагина</div>
+            <div class="status">Княжна</div>
+            <div class="desc">Прекрасна внешне, но эгоистична, расчетлива, аморальна, манипулирует окружающими.</div>
+        </div>
+        <div class="circle">
+            <div class="name">Анатоль Курагин</div>
+            <div class="status">Князь</div>
+            <div class="desc">Легкомысленный, человек страстей и удовольствий, не заботится о последствиях своих поступков.</div>
+        </div>
+        <div class="circle">
+            <div class="name">Николай Ростов</div>
+            <div class="status">Граф</div>
+            <div class="desc">Честен, предан семье, наивен, горяч, мечтает о славе на войне, становится опорой рода Ростовых.</div>
+        </div>
+        <div class="circle">
+            <div class="name">Соня Александровна</div>
+            <div class="status">Дворянка</div>
+            <div class="desc">Покорная, жертвенная, всю жизнь любит Николая Ростова, отказывается от личного счастья ради семьи.</div>
+        </div>
+        <div class="circle">
+            <div class="name">Марья Дмитриевна Ахросимова</div>
+            <div class="status">Дворянка</div>
+            <div class="desc">Решительная, волевая, авторитетна, "гроза города", окружена всеобщим уважением.</div>
+        </div>
+        <div class="circle">
+            <div class="name">Василий Курагин</div>
+            <div class="status">Князь</div>
+            <div class="desc">Лукавый интриган, заботится о выгоде семьи, искусный дипломат и интриган.</div>
+        </div>
+        <div class="circle">
+            <div class="name">Мария Ростова</div>
+            <div class="status">Графиня</div>
+            <div class="desc">Старшая сестра Наташи, рассудительная и заботливая, часто руководит семейными делами.</div>
+        </div>
+        <div class="circle">
+            <div class="name">Илья Ростов</div>
+            <div class="status">Граф</div>
+            <div class="desc">Отец Наташи и Николая, добродушен, расточителен, любит праздники, искренне предан своим детям.</div>
+        </div>
+        <div class="circle">
+            <div class="name">Князь Николай Андреевич Болконский (Старый князь)</div>
+            <div class="status">Князь</div>
+            <div class="desc">Отец Андрея и Марьи, строгий, нелюдимый, уважаемый в обществе, отличается суровым нравом.</div>
+        </div>
+        <div class="circle">
+            <div class="name">Платон Каратаев</div>
+            <div class="status">Солдат</div>
+            <div class="desc">Олицетворение народной мудрости, простоты и смирения, оказывает сильное влияние на Пьера.</div>
+        </div>
+        <div class="circle">
+            <div class="name">Долохов Фёдор Иванович</div>
+            <div class="status">Офицер</div>
+            <div class="desc">Храбрый, остроумный, мстительный и рисковый авантюрист, друг Николая Ростова.</div>
+        </div>
+        <div class="circle">
+            <div class="name">Борис Друбецкой</div>
+            <div class="status">Офицер</div>
+            <div class="desc">Карьерист, ловкий, честолюбивый, друг Николая Ростова, стремится подняться при дворе.</div>
+        </div>
+        <div class="circle">
+            <div class="name">Анна Павловна Шерер</div>
+            <div class="status">Фрейлина</div>
+            <div class="desc">Организатор салонов в Петербурге, любит светскую жизнь, вхожа во многие высокие круги.</div>
+        </div>
+        <div class="circle">
+            <div class="name">Анна Михайловна Друбецкая</div>
+            <div class="status">Графиня</div>
+            <div class="desc">Мать Бориса, бедная, но умная и предприимчивая, всегда заботится о будущем сына.</div>
+        </div>
+        <div class="circle">
+            <div class="name">Жюли Карагина</div>
+            <div class="status">Графиня</div>
+            <div class="desc">Подруга Марьи Болконской, добрая, отличается религиозностью и искренностью.</div>
+        </div>
+        <div class="circle">
+            <div class="name">Федор Иванович Денисов</div>
+            <div class="status">Офицер</div>
+            <div class="desc">Дружелюбный, честный, храбрый гусар, близкий друг Николая Ростова.</div>
+        </div>
+        <div class="circle">
+            <div class="name">Тихон Щербатый</div>
+            <div class="status">Крестьянин</div>
+            <div class="desc">Слуга князя Болконского, ловкий партизан, проявляет смелость в отряде Долохова.</div>
+        </div>
+        <div class="circle">
+            <div class="name">Кутузов Михаил Илларионович</div>
+            <div class="status">Полководец</div>
+            <div class="desc">Русский генерал, мудрый и опытный, возглавлял русскую армию в Отечественной войне 1812 года.</div>
+        </div>
+        <div class="circle">
+            <div class="name">Наполеон Бонапарт</div>
+            <div class="status">Император</div>
+            <div class="desc">Французский император, амбициозный и харизматичный лидер, противник России в войне 1812 года.</div>
+        </div>
+        <div class="circle">
+            <div class="name">Денисов Пётр Иванович</div>
+            <div class="status">Офицер</div>
+            <div class="desc">Храбрый и преданный офицер, друг Николая Ростова, известен своей отвагой и юмором.</div>
+        </div>
+        <div class="circle">
+            <div class="name">Варвара Курагина</div>
+            <div class="status">Дворянка</div>
+            <div class="desc">Сестра Курагиных, красивая и расчетливая женщина, вовлечена в светские интриги.</div>
+        </div>
+        <div class="circle">
+            <div class="name">Платон Каратаев</div>
+            <div class="status">Солдат</div>
+            <div class="desc">Олицетворение народной мудрости, простоты и смирения, оказывает сильное влияние на Пьера.</div>
         </div>
     </div>
 </body>
